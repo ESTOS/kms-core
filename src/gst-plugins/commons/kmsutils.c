@@ -19,7 +19,12 @@
 #include "constants.h"
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
+#ifdef _WIN32
+#include <rpc.h>
+#include <ole2.h>
+#else
 #include <uuid/uuid.h>
+#endif
 #include <string.h>
 
 #define GST_CAT_DEFAULT kmsutils
@@ -1058,11 +1063,24 @@ gchar *
 kms_utils_generate_uuid ()
 {
   gchar *uuid_str;
-  uuid_t uuid;
 
+#ifdef _WIN32
+  RPC_CSTR uuid_rpc_str;
+  GUID uuid;
+#else
+  uuid_t uuid;
+#endif
+
+#ifdef _WIN32
+  CoCreateGuid (&uuid);
+  UuidToStringA (&uuid, &uuid_rpc_str);
+  uuid_str = g_strdup ((gchar *) uuid_rpc_str);
+  RpcStringFree (&uuid_rpc_str);
+#else
   uuid_str = (gchar *) g_malloc0 (UUID_STR_SIZE);
   uuid_generate (uuid);
   uuid_unparse (uuid, uuid_str);
+#endif
 
   return uuid_str;
 }

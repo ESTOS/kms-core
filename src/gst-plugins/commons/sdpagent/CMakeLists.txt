@@ -90,6 +90,10 @@ target_link_libraries(kmssdpagent
   kmsrefstruct
 )
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  target_link_libraries(kmssdpagent -lole32 -lrpcrt4)
+endif ()
+
 install(
   TARGETS kmssdpagent
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
