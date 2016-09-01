@@ -189,8 +189,9 @@ kms_rtp_synchronizer_process_rtcp_packet (KmsRtpSynchronizer * self,
   KMS_RTP_SYNCHRONIZER_LOCK (self);
 
   GST_DEBUG_OBJECT (self,
-      "Received RTCP SR packet SSRC: %u, rtp_time: %u, ntp_time: %lu, ntp_ns_time: %"
-      GST_TIME_FORMAT, ssrc, rtp_time, ntp_time, GST_TIME_ARGS (ntp_ns_time));
+      "Received RTCP SR packet SSRC: %u, rtp_time: %u, ntp_time: %"
+      G_GUINT64_FORMAT ", ntp_ns_time: %" GST_TIME_FORMAT, ssrc, rtp_time,
+      ntp_time, GST_TIME_ARGS (ntp_ns_time));
 
   if (!self->priv->base_initiated) {
     kms_rtp_sync_context_get_time_matching (self->priv->context, ntp_ns_time,
