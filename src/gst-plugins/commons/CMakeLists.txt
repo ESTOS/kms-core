@@ -212,4 +212,4 @@ install(FILES
 
 add_subdirectory(sdpagent)
 
-add_subdirectory(kmsrtpsync)
+add_subdirectory(rtpsync)
