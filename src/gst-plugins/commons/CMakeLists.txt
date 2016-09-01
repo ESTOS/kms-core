@@ -17,7 +17,7 @@ set(KMS_SDP_UTILS_HEADERS
   sdp_utils.h
 )
 
-add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
+add_library(sdputils STATIC ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
 
 target_link_libraries(sdputils
   ${gstreamer-1.5_LIBRARIES}
@@ -40,7 +40,7 @@ install(
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
-add_library(kmsrefstruct kmsrefstruct.c kmsrefstruct.h)
+add_library(kmsrefstruct STATIC kmsrefstruct.c kmsrefstruct.h)
 
 target_link_libraries(kmsrefstruct
   ${gstreamer-1.5_LIBRARIES}
@@ -58,7 +58,7 @@ set(KMS_UTILS
   kmsutils.c kmsutils.h
 )
 
-add_library(kmsutils ${KMS_UTILS})
+add_library(kmsutils STATIC ${KMS_UTILS})
 
 set_target_properties(kmsutils PROPERTIES PUBLIC_HEADER kmsutils.h)
 
@@ -212,4 +212,4 @@ install(FILES
 
 add_subdirectory(sdpagent)
 
-add_subdirectory(rtpsync)
+add_subdirectory(kmsrtpsync)

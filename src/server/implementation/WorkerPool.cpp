@@ -94,7 +94,7 @@ WorkerPool::~WorkerPool()
     GST_ERROR ("Error detaching: %s", e.what() );
   }
 
-  for (uint i = 0; i < workers.size (); i++) {
+  for (unsigned i = 0; i < workers.size (); i++) {
     try {
       if (std::this_thread::get_id() != workers[i].get_id() ) {
         workers[i].join();

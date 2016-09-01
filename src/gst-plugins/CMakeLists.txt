@@ -1,4 +1,6 @@
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+if (NOT (${CMAKE_SYSTEM_NAME} MATCHES "Windows"))
+  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif ()
 
 include(GLibHelpers)
 

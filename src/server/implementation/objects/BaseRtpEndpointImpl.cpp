@@ -473,7 +473,7 @@ createRTCRTPStreamStats (guint nackSent, guint nackRecv,
   std::shared_ptr<RTCRTPStreamStats> rtcStats;
   gboolean isInternal;
   gchar *ssrcStr, *id;
-  uint ssrc, nackCount;
+  guint ssrc, nackCount;
 
   gst_structure_get (stats, "ssrc", G_TYPE_UINT, &ssrc, "internal",
                      G_TYPE_BOOLEAN, &isInternal, "id", G_TYPE_STRING, &id, NULL);

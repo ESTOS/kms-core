@@ -27,6 +27,38 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoModuleManager"
 
+#if _WIN32
+#include <iostream>
+#include <string>
+#include <string.h>
+#include <windows.h>
+#include <shlwapi.h>
+#define MODULE_EXTENSION_STRING ".dll"
+#undef KURENTO_MODULES_DIR
+std::string getWin32ModulesDir()
+{
+  HMODULE hModule = GetModuleHandleA (NULL);
+  static char path[MAX_PATH];
+  GetModuleFileNameA (hModule, path, MAX_PATH);
+  char *finish = path + strlen (path);
+
+  for (int bsc = 0; (bsc < 2) && (finish > path); finish--) {
+    if (*finish == '\\') {
+      bsc++;
+    }
+  }
+
+  *++finish = '\0';
+  std::string a = std::string (path) + "\\lib\\kurento\\modules\\";
+  return a;
+}
+#define KURENTO_MODULES_DIR getWin32ModulesDir().c_str()
+#elif __APPLE__
+#define MODULE_EXTENSION_STRING ".dylib"
+#else
+#define MODULE_EXTENSION_STRING ".so"
+#endif
+
 namespace kurento
 {
 
@@ -169,7 +201,7 @@ ModuleManager::loadModules (std::string dirPath)
     if (boost::filesystem::is_regular (*itr) ) {
       boost::filesystem::path extension = itr->path().extension();
 
-      if (extension.string() == ".so") {
+      if (extension.string() == MODULE_EXTENSION_STRING) {
 
         loadModule (itr->path().string() );
       }

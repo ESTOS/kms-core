@@ -17,7 +17,11 @@
 
 #include "kmsrtcp.h"
 #include <string.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 
 gboolean
 kms_rtcp_psfb_afb_buffer_map (GstBuffer * buffer, GstMapFlags flags,

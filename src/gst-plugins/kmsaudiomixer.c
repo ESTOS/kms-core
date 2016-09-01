@@ -107,7 +107,7 @@ cb_latency (GstPad * pad, GstPadProbeInfo * info, gpointer data)
     return GST_PAD_PROBE_OK;
   }
 
-  GST_LOG_OBJECT (pad, "Modifing latency query. New latency %ld",
+  GST_LOG_OBJECT (pad, "Modifing latency query. New latency %" G_GUINT64_FORMAT,
       LATENCY * GST_MSECOND);
 
   gst_query_set_latency (GST_PAD_PROBE_INFO_QUERY (info),
