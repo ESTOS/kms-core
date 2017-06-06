@@ -19,6 +19,7 @@
 #define __KMS_SDP_SESSION_H__
 
 #include <gst/gst.h>
+#include <gio/gio.h>
 #include "sdpagent/kmssdpagent.h"
 #include "sdpagent/kmssdppayloadmanager.h"
 #include "kmsbasesdpendpoint.h"
@@ -64,6 +65,12 @@ struct _KmsSdpSession
   GstSDPMessage *local_sdp;
   GstSDPMessage *remote_sdp;
   GstSDPMessage *neg_sdp;
+
+  gboolean reuse_socket; //ru-bu
+  GSocket *rtp_socket_reuse_audio;
+  GSocket *rtcp_socket_reuse_audio;
+  GSocket *rtp_socket_reuse_video;
+  GSocket *rtcp_socket_reuse_video;
 };
 
 struct _KmsSdpSessionClass

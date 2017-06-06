@@ -21,6 +21,7 @@
 #include "MediaPipeline.hpp"
 #include <EventHandler.hpp>
 #include <gst/gst.h>
+#include <gio/gio.h>
 #include <boost/property_tree/ptree.hpp>
 
 namespace kurento
@@ -64,6 +65,11 @@ public:
 
   bool addElement (GstElement *element);
 
+  void getSockets (GSocket **rtp_socket_audio, GSocket **rtcp_socket_audio,
+                   GSocket **rtp_socket_video, GSocket **rtcp_socket_video);
+  void setSockets (GSocket *rtp_socket_audio, GSocket *rtcp_socket_audio,
+                   GSocket *rtp_socket_video, GSocket *rtcp_socket_video);
+
 protected:
   virtual void postConstructor ();
 private:
@@ -85,6 +91,10 @@ private:
 
   static StaticConstructor staticConstructor;
 
+  GSocket *rtp_socket_reuse_audio; //ru-bu
+  GSocket *rtcp_socket_reuse_audio;
+  GSocket *rtp_socket_reuse_video;
+  GSocket *rtcp_socket_reuse_video;
 };
 
 } /* kurento */

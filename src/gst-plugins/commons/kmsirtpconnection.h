@@ -19,6 +19,7 @@
 #define __KMS_I_RTP_CONNECTION_H__
 
 #include <gst/gst.h>
+#include <gio/gio.h>
 #include "kmsstats.h"
 
 G_BEGIN_DECLS

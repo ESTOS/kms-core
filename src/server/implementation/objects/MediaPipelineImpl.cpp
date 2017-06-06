@@ -60,7 +60,7 @@ MediaPipelineImpl::busMessage (GstMessage *message)
         code = err->code;
       }
 
-      Error error (shared_from_this(), errorMessage , code,
+      Error error (shared_from_this(), errorMessage, code,
                    "UNEXPECTED_PIPELINE_ERROR");
 
       signalError (error);
@@ -113,6 +113,11 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   busMessageHandler = 0;
+
+  rtp_socket_reuse_audio = NULL;
+  rtcp_socket_reuse_audio = NULL;
+  rtp_socket_reuse_video = NULL;
+  rtcp_socket_reuse_video = NULL;
 }
 
 MediaPipelineImpl::~MediaPipelineImpl ()
@@ -120,6 +125,26 @@ MediaPipelineImpl::~MediaPipelineImpl ()
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+
+  if (rtp_socket_reuse_audio != NULL) { //ru-bu
+    g_object_set (pipeline, "rtp-socket-close", rtp_socket_reuse_audio, NULL);
+    rtp_socket_reuse_audio = NULL;
+  }
+
+  if (rtcp_socket_reuse_audio != NULL) {
+    g_object_set (pipeline, "rtp-socket-close", rtcp_socket_reuse_audio, NULL);
+    rtcp_socket_reuse_audio = NULL;
+  }
+
+  if (rtp_socket_reuse_video != NULL) { //ru-bu
+    g_object_set (pipeline, "rtp-socket-close", rtp_socket_reuse_video, NULL);
+    rtp_socket_reuse_video = NULL;
+  }
+
+  if (rtcp_socket_reuse_video != NULL) {
+    g_object_set (pipeline, "rtp-socket-close", rtcp_socket_reuse_video, NULL);
+    rtcp_socket_reuse_video = NULL;
+  }
 
   if (busMessageHandler > 0) {
     unregister_signal_handler (bus, busMessageHandler);
@@ -210,6 +235,62 @@ MediaPipelineImpl::addElement (GstElement *element)
   }
 
   return ret;
+}
+
+void
+MediaPipelineImpl::getSockets (GSocket **rtp_socket_audio,
+                               GSocket **rtcp_socket_audio, GSocket **rtp_socket_video,
+                               GSocket **rtcp_socket_video)
+{
+  if (rtp_socket_audio) {
+    *rtp_socket_audio = rtp_socket_reuse_audio;
+  }
+
+  if (rtcp_socket_audio) {
+    *rtcp_socket_audio = rtcp_socket_reuse_audio;
+  }
+
+  if (rtp_socket_video) {
+    *rtp_socket_video = rtp_socket_reuse_video;
+  }
+
+  if (rtcp_socket_video) {
+    *rtcp_socket_video = rtcp_socket_reuse_video;
+  }
+}
+
+void
+MediaPipelineImpl::setSockets (GSocket *rtp_socket_audio,
+                               GSocket *rtcp_socket_audio, GSocket *rtp_socket_video,
+                               GSocket *rtcp_socket_video)
+{
+  if ( (rtp_socket_reuse_audio != NULL)
+       && (rtp_socket_reuse_audio != rtp_socket_audio) ) {
+    g_object_set (pipeline, "rtp-socket-close", rtp_socket_reuse_audio, NULL);
+  }
+
+  rtp_socket_reuse_audio = rtp_socket_audio;
+
+  if ( (rtcp_socket_reuse_audio != NULL)
+       && (rtcp_socket_reuse_audio != rtcp_socket_audio) ) {
+    g_object_set (pipeline, "rtp-socket-close", rtcp_socket_reuse_audio, NULL);
+  }
+
+  rtcp_socket_reuse_audio = rtcp_socket_audio;
+
+  if ( (rtp_socket_reuse_video != NULL)
+       && (rtp_socket_reuse_video != rtp_socket_video) ) {
+    g_object_set (pipeline, "rtp-socket-close", rtp_socket_reuse_video, NULL);
+  }
+
+  rtp_socket_reuse_video = rtp_socket_video;
+
+  if ( (rtcp_socket_reuse_video != NULL)
+       && (rtcp_socket_reuse_video != rtcp_socket_video) ) {
+    g_object_set (pipeline, "rtp-socket-close", rtcp_socket_reuse_video, NULL);
+  }
+
+  rtcp_socket_reuse_video = rtcp_socket_video;
 }
 
 MediaObjectImpl *

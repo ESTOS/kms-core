@@ -202,9 +202,9 @@ private:
   std::recursive_timed_mutex sinksMutex;
 
   std::map < std::shared_ptr <MediaType>, std::map < std::string,
-      std::shared_ptr<ElementConnectionDataInternal >> , MediaTypeCmp > sources;
+      std::shared_ptr<ElementConnectionDataInternal >>, MediaTypeCmp > sources;
   std::map < std::shared_ptr <MediaType>, std::map < std::string,
-      std::set<std::shared_ptr<ElementConnectionDataInternal> >> , MediaTypeCmp >
+      std::set<std::shared_ptr<ElementConnectionDataInternal> >>, MediaTypeCmp >
       sinks;
 
   std::mt19937_64 rnd {std::random_device{}() };
@@ -235,6 +235,8 @@ private:
       gpointer data);
   friend void _media_element_pad_added (GstElement *elem, GstPad *pad,
                                         gpointer data);
+
+  std::list <std::string> audio_codecs_list; //ru-bu
 };
 
 } /* kurento */

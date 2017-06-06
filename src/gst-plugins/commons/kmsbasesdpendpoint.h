@@ -71,6 +71,11 @@ struct _KmsBaseSdpEndpointClass
   GstSDPMessage *(*get_local_sdp) (KmsBaseSdpEndpoint * self, const gchar *sess_id);
   GstSDPMessage *(*get_remote_sdp) (KmsBaseSdpEndpoint * self, const gchar *sess_id);
 
+  GSocket *(*get_set_rtp_socket_audio) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GSocket * gsocket);
+  GSocket *(*get_set_rtcp_socket_audio) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GSocket * gsocket);
+  GSocket *(*get_set_rtp_socket_video) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GSocket * gsocket);
+  GSocket *(*get_set_rtcp_socket_video) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GSocket * gsocket);
+
   /* virtual methods */
   void (*create_session_internal) (KmsBaseSdpEndpoint * self, gint id, KmsSdpSession **sess);
   void (*release_session_internal) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess);

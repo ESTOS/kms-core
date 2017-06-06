@@ -1017,6 +1017,7 @@
       "values": [
         "OPUS",
         "PCMU",
+        "PCMA",
         "RAW"
       ],
       "name": "AudioCodec",

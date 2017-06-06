@@ -277,7 +277,7 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
         code = err->code;
       }
 
-      Error error (elem->shared_from_this(), errorMessage , code,
+      Error error (elem->shared_from_this(), errorMessage, code,
                    "UNEXPECTED_ELEMENT_ERROR");
 
       elem->signalError (error);
@@ -643,8 +643,7 @@ void MediaElementImpl::disconnectAll ()
         disconnect (connData->getSink (), connData->getType (),
                     connData->getSourceDescription (),
                     connData->getSinkDescription () );
-      }
-      else {
+      } else {
         GST_DEBUG_OBJECT (sinkImpl->getGstreamerElement(),
                           "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
@@ -672,8 +671,7 @@ void MediaElementImpl::disconnectAll ()
                                             connData->getType (),
                                             connData->getSourceDescription (),
                                             connData->getSinkDescription () );
-      }
-      else {
+      } else {
         GST_DEBUG_OBJECT (sourceImpl->getGstreamerElement (),
                           "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
@@ -1027,22 +1025,43 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
   signalElementDisconnected (elementDisconnected);
 }
 
+static void
+append_codec_to_array (GArray *array, const char *codec)
+{
+  GValue v = G_VALUE_INIT;
+  GstStructure *s;
+
+  g_value_init (&v, GST_TYPE_STRUCTURE);
+  s = gst_structure_new_empty (codec);
+  gst_value_set_structure (&v, s);
+  gst_structure_free (s);
+  g_array_append_val (array, v);
+}
+
 void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
 {
   std::shared_ptr<AudioCodec> codec;
   std::stringstream sstm;
   std::string str_caps;
   GstCaps *c = NULL;
+  GArray *audio_codecs;
 
   codec = caps->getCodec();
 
   switch (codec->getValue() ) {
   case AudioCodec::OPUS:
     str_caps = "audio/x-opus";
+    audio_codecs_list.push_back ("opus/48000/2");
     break;
 
   case AudioCodec::PCMU:
     str_caps = "audio/x-mulaw";
+    audio_codecs_list.push_back ("PCMU/8000");
+    break;
+
+  case AudioCodec::PCMA:
+    str_caps = "audio/x-alaw";
+    audio_codecs_list.push_back ("PCMA/8000");
     break;
 
   case AudioCodec::RAW:
@@ -1059,6 +1078,16 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "audio-caps", c, NULL);
+
+  audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) ); //ru-bu
+
+  //g_object_get(G_OBJECT(element), "audio-codecs", &audio_codecs, NULL);
+  for (std::string audio_codecs_str : audio_codecs_list) {
+    append_codec_to_array (audio_codecs, audio_codecs_str.c_str() );
+  }
+
+  g_object_set (G_OBJECT (element), "audio-codecs", audio_codecs, NULL);
+
 }
 
 void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)

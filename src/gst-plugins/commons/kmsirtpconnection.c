@@ -60,6 +60,18 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
   g_object_interface_install_property (iface, g_param_spec_uint ("max-port",
           "Max port", "Maximum port connection should use", 0, DEFAULT_MAX_PORT,
           G_MAXUINT16, G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+  g_object_interface_install_property (iface,
+      g_param_spec_boolean ("finalize-socket", "Finalize socket",
+          "Let the sockets of the connection open ", FALSE, G_PARAM_READWRITE));
+
+  g_object_interface_install_property (iface,
+      g_param_spec_pointer ("rtp-socket", "RTP Socket", "get the rtp-socket",
+          G_PARAM_READABLE));
+
+  g_object_interface_install_property (iface,
+      g_param_spec_pointer ("rtcp-socket", "RTCP Socket", "get the rtcp-socket",
+          G_PARAM_READABLE));
 }
 
 void
