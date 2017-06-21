@@ -237,6 +237,7 @@ private:
                                         gpointer data);
 
   std::list <std::string> audio_codecs_list; //ru-bu
+  std::list <std::string> video_codecs_list;
 };
 
 } /* kurento */

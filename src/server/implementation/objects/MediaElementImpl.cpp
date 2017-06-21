@@ -1086,7 +1086,10 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
     append_codec_to_array (audio_codecs, audio_codecs_str.c_str() );
   }
 
-  g_object_set (G_OBJECT (element), "audio-codecs", audio_codecs, NULL);
+  if (audio_codecs_list.size() >= 1) {
+    g_object_set (element, "num-audio-medias", 1, NULL);
+    g_object_set (G_OBJECT (element), "audio-codecs", audio_codecs, NULL);
+  }
 
 }
 
@@ -1097,6 +1100,7 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
   std::stringstream sstm;
   std::string str_caps;
   GstCaps *c = NULL;
+  GArray *video_codecs;
 
   codec = caps->getCodec();
   fraction = caps->getFramerate();
@@ -1104,14 +1108,17 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
   switch (codec->getValue() ) {
   case VideoCodec::VP8:
     str_caps = "video/x-vp8";
+    video_codecs_list.push_back ("VP8/90000");
     break;
 
   case VideoCodec::H264:
     str_caps = "video/x-h264";
+    video_codecs_list.push_back ("H264/90000");
     break;
 
   case VideoCodec::RAW:
     str_caps = "video/x-raw";
+    //video_codecs_list.push_back("");
     break;
 
   default:
@@ -1125,6 +1132,17 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "video-caps", c, NULL);
+
+  video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
+
+  for (std::string video_codecs_str : video_codecs_list) {
+    append_codec_to_array (video_codecs, video_codecs_str.c_str() );
+  }
+
+  if (video_codecs_list.size() >= 1) {
+    g_object_set (element, "num-video-medias", 1, NULL);
+    g_object_set (G_OBJECT (element), "video-codecs", video_codecs, NULL);
+  }
 }
 
 std::string MediaElementImpl::getGstreamerDot (

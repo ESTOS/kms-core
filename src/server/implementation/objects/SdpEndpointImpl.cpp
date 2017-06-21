@@ -162,8 +162,8 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
 
-  audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 1);
-  video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 1);
+  audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 0);
+  video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 0);
   local_address = getConfigValue<std::string, SdpEndpoint> (PARAM_LOCAL_ADDRESS,
                   "");
   socket_reuse = getConfigValue <guint, SdpEndpoint> (PARAM_SOCKET_REUSE, 1);
