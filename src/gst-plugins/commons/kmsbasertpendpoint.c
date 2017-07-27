@@ -1931,21 +1931,40 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
     GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
     kms_base_rtp_endpoint_update_stats (self, depayloader, media);
     gst_bin_add (GST_BIN (self), depayloader);
-    if (FALSE == gst_element_link_pads (depayloader, "src", agnostic, "sink")) {        //unlink pad and try again
-      GstPad *sink_pad = gst_element_get_static_pad (agnostic, "sink");
 
-      if (gst_pad_is_linked (sink_pad)) {
-        GstPad *peer_pad = gst_pad_get_peer (sink_pad);
+    /* rtpdtmfdepay generates a dtmf event and a stream with the generated tone
+       we dont need the tone so we terminate it in a fakesink ru-bu
+     */
+    if (g_str_has_prefix (GST_OBJECT_NAME (depayloader), "rtpdtmfdepay")) {
+      GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
-        gst_pad_unlink (peer_pad, sink_pad);
-        gst_object_unref (peer_pad);
+      g_object_set (fake, "async", FALSE, "sync", FALSE, NULL);
+      gst_bin_add (GST_BIN (self), fake);
+
+      gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+          "sink");
+      gst_element_sync_state_with_parent (depayloader);
+
+      gst_element_link_pads (depayloader, "src", fake, "sink");
+      gst_element_sync_state_with_parent (fake);
+    } else {
+      if (FALSE == gst_element_link_pads (depayloader, "src", agnostic, "sink")) {      //unlink pad and try again
+        GstPad *sink_pad = gst_element_get_static_pad (agnostic, "sink");
+
+        if (gst_pad_is_linked (sink_pad)) {
+          GstPad *peer_pad = gst_pad_get_peer (sink_pad);
+
+          gst_pad_unlink (peer_pad, sink_pad);
+          gst_object_unref (peer_pad);
+        }
+        gst_object_unref (sink_pad);
+        //once again
+        gst_element_link_pads (depayloader, "src", agnostic, "sink");
       }
-      gst_object_unref (sink_pad);
-      //once again
-      gst_element_link_pads (depayloader, "src", agnostic, "sink");
+      gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+          "sink");
+      gst_element_sync_state_with_parent (depayloader);
     }
-    gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
-    gst_element_sync_state_with_parent (depayloader);
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
