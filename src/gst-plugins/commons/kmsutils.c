@@ -64,6 +64,7 @@ gboolean
 kms_is_valid_uri (const gchar * url)
 {
   gboolean ret;
+
   GRegex *regex;
 
   regex = g_regex_new ("^(?:((?:https?):)\\/\\/)([^:\\/\\s]+)(?::(\\d*))?(?:\\/"
@@ -78,7 +79,9 @@ gboolean
 gst_element_sync_state_with_parent_target_state (GstElement * element)
 {
   GstElement *parent;
+
   GstState target;
+
   GstStateChangeReturn ret;
 
   g_return_val_if_fail (GST_IS_ELEMENT (element), FALSE);
@@ -119,6 +122,7 @@ GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
 static GstStaticCaps static_rtp_caps = GST_STATIC_CAPS (KMS_AGNOSTIC_RTP_CAPS);
+
 static GstStaticCaps static_raw_caps =
     GST_STATIC_CAPS
     ("video/x-raw; video/x-raw(ANY); audio/x-raw; audio/x-raw(ANY);");
@@ -128,6 +132,7 @@ caps_can_intersect_with_static (const GstCaps * caps,
     GstStaticCaps * static_caps)
 {
   GstCaps *aux;
+
   gboolean ret;
 
   if (caps == NULL) {
@@ -157,6 +162,7 @@ gboolean
 kms_utils_caps_are_raw (const GstCaps * caps)
 {
   gboolean ret;
+
   GstCaps *raw_caps = gst_static_caps_get (&static_raw_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
@@ -170,6 +176,7 @@ gboolean
 kms_utils_caps_are_rtp (const GstCaps * caps)
 {
   gboolean ret;
+
   GstCaps *raw_caps = gst_static_caps_get (&static_rtp_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
@@ -223,6 +230,9 @@ kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name)
   }
   if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
     return "VP8";
+  }
+  if (g_ascii_strcasecmp (TELEPHONE_EVENT_ENCONDING_NAME, codec_name) == 0) {
+    return "TELEPHONE-EVENT";
   }
 
   return codec_name;
@@ -293,6 +303,7 @@ static gboolean
 is_raw_caps (GstCaps * caps)
 {
   gboolean ret;
+
   GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
@@ -305,6 +316,7 @@ static void
 send_force_key_unit_event (GstPad * pad, gboolean all_headers)
 {
   GstEvent *event;
+
   GstCaps *caps = gst_pad_get_current_caps (pad);
 
   if (caps == NULL) {
@@ -349,6 +361,7 @@ drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
     gpointer user_data)
 {
   gboolean all_headers = GPOINTER_TO_INT (user_data);
+
   gboolean drop = FALSE;
 
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
@@ -359,6 +372,7 @@ drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
         drop ? "Drop buffer" : "Keep buffer (is keyframe)");
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
     GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
     gint keyframe_idx = -1;
 
     gst_buffer_list_foreach (bufflist,
@@ -463,8 +477,11 @@ static gboolean
 check_last_request_time (GstPad * pad)
 {
   GstClockTime *last, now;
+
   GstClock *clock;
+
   GstElement *element = gst_pad_get_parent_element (pad);
+
   gboolean ret = FALSE;
 
   if (element == NULL) {
@@ -530,8 +547,11 @@ kms_element_iterate_pads (GstIterator * it, KmsPadCallback action,
     gpointer data)
 {
   gboolean done = FALSE;
+
   GstPad *pad;
+
   GValue item = G_VALUE_INIT;
+
   gboolean success = TRUE;
 
   while (!done) {
@@ -572,6 +592,7 @@ kms_element_for_each_sink_pad (GstElement * element,
     KmsPadCallback action, gpointer data)
 {
   GstIterator *it = gst_element_iterate_sink_pads (element);
+
   gboolean ret;
 
   ret = kms_element_iterate_pads (it, action, data);
@@ -643,7 +664,9 @@ static GstPadProbeReturn
 pad_blocked_callback (GstPad * pad, GstPadProbeInfo * info, gpointer d)
 {
   PadBlockedData *data = d;
+
   GstEvent *event;
+
   const GstStructure *st;
 
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
@@ -684,6 +707,7 @@ kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop,
     KmsPadCallback func, gpointer userData)
 {
   gulong probe_id;
+
   PadBlockedData *data = g_slice_new (PadBlockedData);
 
   data->callback = func;
@@ -816,14 +840,19 @@ static void
 remb_event_manager_calc_min (RembEventManager * manager, guint default_min)
 {
   guint remb_min = 0;
+
   GstClockTime time = kms_utils_get_time_nsecs ();
+
   GstClockTime oldest_time = GST_CLOCK_TIME_NONE;
+
   GHashTableIter iter;
+
   gpointer key, v;
 
   g_hash_table_iter_init (&iter, manager->remb_hash);
   while (g_hash_table_iter_next (&iter, &key, &v)) {
     guint br = ((RembHashValue *) v)->bitrate;
+
     GstClockTime ts = ((RembHashValue *) v)->ts;
 
     if (time - ts > manager->clear_interval) {
@@ -856,7 +885,9 @@ remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
     guint ssrc)
 {
   RembHashValue *last_value;
+
   GstClockTime time = kms_utils_get_time_nsecs ();
+
   gboolean new_br = TRUE;
 
   g_mutex_lock (&manager->mutex);
@@ -897,7 +928,9 @@ static GstPadProbeReturn
 remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
   RembEventManager *manager = user_data;
+
   GstEvent *event = gst_pad_probe_info_get_event (info);
+
   guint bitrate, ssrc;
 
   if (!kms_utils_remb_event_upstream_parse (event, &bitrate, &ssrc)) {
@@ -961,6 +994,7 @@ guint
 kms_utils_remb_event_manager_get_min (RembEventManager * manager)
 {
   GstClockTime time = kms_utils_get_time_nsecs ();
+
   guint ret;
 
   g_mutex_lock (&manager->mutex);
@@ -1022,7 +1056,9 @@ gboolean
 kms_utils_contains_proto (const gchar * search_term, const gchar * proto)
 {
   gchar *pattern;
+
   GRegex *regex;
+
   gboolean ret;
 
   pattern = g_strdup_printf ("(%s|.+/%s|%s/.+|.+/%s/.+)", proto, proto, proto,
@@ -1066,6 +1102,7 @@ kms_utils_generate_uuid ()
 
 #ifdef _WIN32
   RPC_CSTR uuid_rpc_str;
+
   GUID uuid;
 #else
   uuid_t uuid;
@@ -1120,16 +1157,27 @@ gchar *
 kms_utils_generate_fingerprint_from_pem (const gchar * pem)
 {
   guint i;
+
   gchar *line;
+
   guchar *der, *tmp;
+
   gchar **lines;
+
   gint state = 0;
+
   guint save = 0;
+
   gsize der_length = 0;
+
   GChecksum *checksum;
+
   guint8 *digest;
+
   gsize digest_length;
+
   GString *fingerprint;
+
   gchar *ret;
 
   if (pem == NULL) {
@@ -1175,6 +1223,7 @@ kms_utils_generate_fingerprint_from_pem (const gchar * pem)
 }
 
 typedef struct _KmsEventData KmsEventData;
+
 struct _KmsEventData
 {
   GstPadEventFunction user_func;
@@ -1203,6 +1252,7 @@ static gboolean
 kms_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
 {
   KmsEventData *data, *first = pad->eventdata;
+
   gboolean ret = TRUE;
 
   for (data = first; data != NULL && ret; data = data->next) {
@@ -1226,6 +1276,7 @@ kms_utils_set_pad_event_function_full (GstPad * pad, GstPadEventFunction event,
     gpointer user_data, GDestroyNotify notify, gboolean chain_callbacks)
 {
   GstPadEventFunction prev_func;
+
   KmsEventData *data;
 
   /* Create new data */
@@ -1265,6 +1316,7 @@ set_func:
 }
 
 typedef struct _KmsQueryData KmsQueryData;
+
 struct _KmsQueryData
 {
   GstPadQueryFunction user_func;
@@ -1293,6 +1345,7 @@ static gboolean
 kms_query_function (GstPad * pad, GstObject * parent, GstQuery * query)
 {
   KmsQueryData *data, *first = pad->querydata;
+
   gboolean ret = FALSE;
 
   for (data = first; data != NULL && !ret; data = data->next) {
@@ -1315,6 +1368,7 @@ kms_utils_set_pad_query_function_full (GstPad * pad,
     gboolean chain_callbacks)
 {
   GstPadQueryFunction prev_func;
+
   KmsQueryData *data;
 
   /* Create new data */
@@ -1392,6 +1446,7 @@ kms_rtp_receiver_adjust_pts (AdjustPtsData * data, GstBuffer ** buffer)
 
   if (GST_BUFFER_PTS (*buffer) > data->last_pts) {
     GstClockTime pts_diff = GST_BUFFER_PTS (*buffer) - data->last_pts;
+
     GstClockTime dts_diff = GST_BUFFER_DTS (*buffer) - data->last_dts;
 
     if (pts_diff > 200 * GST_MSECOND) {

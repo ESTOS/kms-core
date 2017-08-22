@@ -1064,6 +1064,11 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
     audio_codecs_list.push_back ("PCMA/8000");
     break;
 
+  case AudioCodec::TELEPHONE_EVENT:
+    str_caps = "audio/x-raw";
+    audio_codecs_list.push_back ("telephone-event/8000");
+    break;
+
   case AudioCodec::RAW:
     str_caps = "audio/x-raw";
     break;
@@ -1089,6 +1094,8 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
   if (audio_codecs_list.size() >= 1) {
     g_object_set (element, "num-audio-medias", 1, NULL);
     g_object_set (G_OBJECT (element), "audio-codecs", audio_codecs, NULL);
+  } else {
+    g_array_free (audio_codecs, TRUE);
   }
 
 }
@@ -1142,6 +1149,8 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
   if (video_codecs_list.size() >= 1) {
     g_object_set (element, "num-video-medias", 1, NULL);
     g_object_set (G_OBJECT (element), "video-codecs", video_codecs, NULL);
+  } else {
+    g_array_free (video_codecs, TRUE);
   }
 }
 
