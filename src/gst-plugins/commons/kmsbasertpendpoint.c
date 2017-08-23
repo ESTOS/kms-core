@@ -1461,6 +1461,70 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
 }
 
 static void
+kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (KmsBaseRtpEndpoint * self,
+    KmsIRtpConnection * conn, KmsElementPadType type, GstElement * payloader,
+    const gchar * rtpbin_pad_name, gint ipt)
+{
+#define DTMFSRC
+#ifdef DTMFSRC
+  GstPadTemplate *rtpdtmfmux_priority_sink_pad_template;
+
+  GstPad * rtpdtmfmux_priority_sink_pad;
+  GstPad * rtpdtmfsrc_src_pad;
+  
+#endif /*  */
+      GstPadTemplate * rtpdtmfmux_normal_sink_pad_template;
+  GstPad * rtpdtmfmux_normal_sink_pad, *payloader_src_pad;
+  GstElement *rtpbin = self->priv->rtpbin;
+
+  GstElement *rtpdtmfmux = gst_element_factory_make ("rtpdtmfmux", NULL);
+
+#ifdef DTMFSRC
+  GstElement *rtpdtmfsrc = gst_element_factory_make ("rtpdtmfsrc", NULL);
+
+  g_object_set (rtpdtmfsrc, "pt", ipt, NULL);
+
+  gst_bin_add (GST_BIN (self), rtpdtmfsrc);
+#endif
+  gst_bin_add (GST_BIN (self), payloader);
+  gst_bin_add (GST_BIN (self), rtpdtmfmux);
+
+  gst_element_link_pads (rtpdtmfmux, "src", rtpbin, rtpbin_pad_name);
+
+#ifdef DTMFSRC
+  rtpdtmfmux_priority_sink_pad_template =
+      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (rtpdtmfmux),
+      "priority_sink_%u");
+  rtpdtmfmux_priority_sink_pad =
+      gst_element_request_pad (rtpdtmfmux,
+      rtpdtmfmux_priority_sink_pad_template, NULL, NULL);
+  rtpdtmfsrc_src_pad = gst_element_get_static_pad (rtpdtmfsrc, "src");
+  gst_pad_link (rtpdtmfsrc_src_pad, rtpdtmfmux_priority_sink_pad);
+  gst_element_sync_state_with_parent (rtpdtmfsrc);
+  
+#endif /*  */
+      rtpdtmfmux_normal_sink_pad_template =
+      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (rtpdtmfmux),
+      "sink_%u");
+  rtpdtmfmux_normal_sink_pad =
+      gst_element_request_pad (rtpdtmfmux, rtpdtmfmux_normal_sink_pad_template,
+      NULL, NULL);
+  payloader_src_pad = gst_element_get_static_pad (payloader, "src");
+  gst_pad_link (payloader_src_pad, rtpdtmfmux_normal_sink_pad);
+  gst_element_sync_state_with_parent (payloader);
+  gst_element_sync_state_with_parent (rtpdtmfmux);
+
+  kms_base_rtp_endpoint_connect_payloader_async (self, conn, payloader, type);
+
+#ifdef DTMFSRC
+  gst_object_unref (rtpdtmfmux_priority_sink_pad);
+  gst_object_unref (rtpdtmfsrc_src_pad);
+#endif
+  gst_object_unref (rtpdtmfmux_normal_sink_pad);
+  gst_object_unref (payloader_src_pad);
+}
+
+static void
 kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
     KmsBaseRtpSession * sess, KmsSdpMediaHandler * handler,
     const GstSDPMedia * media)
@@ -1477,21 +1541,54 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
   KmsElementPadType type;
 
+  gboolean bdtmfinsert = FALSE;
+
+  gint ipt = 0;
+
   f_len = gst_sdp_media_formats_len (media);
-  for (j = 0; j < f_len && caps == NULL; j++) {
+  for (j = 0; j < f_len; j++) {
     const gchar *pt = gst_sdp_media_get_format (media, j);
 
     const gchar *rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
 
-    caps = kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, pt, rtpmap);
+    GstCaps *localcaps =
+        kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, pt, rtpmap);
+
+    if (localcaps == NULL)
+      break;
+
+    if (caps == NULL) {
+      caps = localcaps;
+      GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, localcaps);
+    } else {
+      gint clock_rate;
+      gchar *codec_name = NULL;
+
+      GST_DEBUG_OBJECT (self, "Found more caps: %" GST_PTR_FORMAT, localcaps);
+      gst_caps_unref (localcaps);
+      if (rtpmap
+          && sdp_utils_get_data_from_rtpmap (rtpmap, &codec_name,
+              &clock_rate)) {
+        GstElement *rtpbin = self->priv->rtpbin;
+        gchar *name = GST_OBJECT_NAME ((GST_OBJECT_PARENT (rtpbin)));
+
+        if (g_str_has_prefix (name, "kmsrtpendpoint")) {
+          if (0 ==
+              g_strcmp0 (kms_utils_get_caps_codec_name_from_sdp (codec_name),
+                  "TELEPHONE-EVENT")) {
+            bdtmfinsert = TRUE;
+            ipt = atoi (pt);
+          }
+          g_free (codec_name);
+        }
+      }
+    }
   }
 
   if (caps == NULL) {
     GST_WARNING_OBJECT (self, "Caps not found for media '%s'", media_str);
     return;
   }
-
-  GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
 
   payloader = gst_base_rtp_get_payloader_for_caps (caps);
   gst_caps_unref (caps);
@@ -1523,9 +1620,14 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
     if (conn == NULL) {
       return;
     }
-
-    kms_base_rtp_endpoint_connect_payloader (self, conn, type, payloader,
-        rtpbin_pad_name);
+    //here we insert the rtpdtmfmux if we need to add dtmf payload to the stream ru-bu
+    if (bdtmfinsert == TRUE) {
+      kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (self, conn, type,
+          payloader, rtpbin_pad_name, ipt);
+    } else {
+      kms_base_rtp_endpoint_connect_payloader (self, conn, type, payloader,
+          rtpbin_pad_name);
+    }
   }
 }
 
@@ -1931,21 +2033,40 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
     GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
     kms_base_rtp_endpoint_update_stats (self, depayloader, media);
     gst_bin_add (GST_BIN (self), depayloader);
-    if (FALSE == gst_element_link_pads (depayloader, "src", agnostic, "sink")) {        //unlink pad and try again
-      GstPad *sink_pad = gst_element_get_static_pad (agnostic, "sink");
 
-      if (gst_pad_is_linked (sink_pad)) {
-        GstPad *peer_pad = gst_pad_get_peer (sink_pad);
+    /* rtpdtmfdepay generates a dtmf event and a stream with the generated tone
+       we dont need the tone so we terminate it in a fakesink ru-bu
+     */
+    if (g_str_has_prefix (GST_OBJECT_NAME (depayloader), "rtpdtmfdepay")) {
+      GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
-        gst_pad_unlink (peer_pad, sink_pad);
-        gst_object_unref (peer_pad);
+      g_object_set (fake, "async", FALSE, "sync", FALSE, NULL);
+      gst_bin_add (GST_BIN (self), fake);
+
+      gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+          "sink");
+      gst_element_sync_state_with_parent (depayloader);
+
+      gst_element_link_pads (depayloader, "src", fake, "sink");
+      gst_element_sync_state_with_parent (fake);
+    } else {
+      if (FALSE == gst_element_link_pads (depayloader, "src", agnostic, "sink")) {      //unlink pad and try again
+        GstPad *sink_pad = gst_element_get_static_pad (agnostic, "sink");
+
+        if (gst_pad_is_linked (sink_pad)) {
+          GstPad *peer_pad = gst_pad_get_peer (sink_pad);
+
+          gst_pad_unlink (peer_pad, sink_pad);
+          gst_object_unref (peer_pad);
+        }
+        gst_object_unref (sink_pad);
+        //once again
+        gst_element_link_pads (depayloader, "src", agnostic, "sink");
       }
-      gst_object_unref (sink_pad);
-      //once again
-      gst_element_link_pads (depayloader, "src", agnostic, "sink");
+      gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+          "sink");
+      gst_element_sync_state_with_parent (depayloader);
     }
-    gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
-    gst_element_sync_state_with_parent (depayloader);
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 

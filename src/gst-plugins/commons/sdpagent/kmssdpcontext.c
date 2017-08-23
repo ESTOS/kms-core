@@ -129,8 +129,7 @@ kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
     goto error;
   }
 
-  if (gst_sdp_message_set_session_name (msg,
-          "Kurento Media Server") != GST_SDP_OK) {
+  if (gst_sdp_message_set_session_name (msg, "UC Media Server") != GST_SDP_OK) {
     err_attr = "session";
     goto error;
   }

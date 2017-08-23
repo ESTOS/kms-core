@@ -1017,8 +1017,9 @@
       "values": [
         "OPUS",
         "PCMU",
+        "RAW",
         "PCMA",
-        "RAW"
+        "TELEPHONE_EVENT"
       ],
       "name": "AudioCodec",
       "doc": "Codec used for transmission of audio."

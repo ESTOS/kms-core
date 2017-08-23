@@ -1151,8 +1151,7 @@ kms_sdp_agent_set_default_session_attributes (GstSDPMessage * msg,
     goto error;
   }
 
-  if (gst_sdp_message_set_session_name (msg,
-          "Kurento Media Server") != GST_SDP_OK) {
+  if (gst_sdp_message_set_session_name (msg, "UC Media Server") != GST_SDP_OK) {
     err_attr = "session";
     goto error;
   }
@@ -1418,8 +1417,8 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
       continue;
     }
 
-    if (kms_sdp_group_manager_is_handler_valid_for_groups (agent->priv->
-            group_manager, media, offer, sdp_handler->sdph)) {
+    if (kms_sdp_group_manager_is_handler_valid_for_groups (agent->
+            priv->group_manager, media, offer, sdp_handler->sdph)) {
       return sdp_handler;
     }
   }
@@ -2300,8 +2299,8 @@ kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid,
   }
 
   ret =
-      kms_sdp_group_manager_remove_handler_from_group (agent->priv->
-      group_manager, gid, hid);
+      kms_sdp_group_manager_remove_handler_from_group (agent->
+      priv->group_manager, gid, hid);
 
   if (!ret) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
