@@ -105,9 +105,6 @@ private:
 
   static StaticConstructor staticConstructor;
 
-public:
-  GstElement *mypipeline;
-
 };
 
 } /* kurento */

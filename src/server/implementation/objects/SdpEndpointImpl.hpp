@@ -84,12 +84,6 @@ private:
 
   static StaticConstructor staticConstructor;
 
-public:
-  bool bIsThisaRtpendpoint()
-  {
-    return isrtpendpoint;
-  }
-
 };
 
 } /* kurento */

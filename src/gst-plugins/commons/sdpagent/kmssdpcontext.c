@@ -129,7 +129,8 @@ kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
     goto error;
   }
 
-  if (gst_sdp_message_set_session_name (msg, "UC Media Server") != GST_SDP_OK) {
+  if (gst_sdp_message_set_session_name (msg,
+          "Kurento Media Server") != GST_SDP_OK) {
     err_attr = "session";
     goto error;
   }
@@ -202,7 +203,6 @@ static gboolean
 intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   SdpMessageContext *ctx = user_data;
-
   guint i, len;
 
   if (g_strcmp0 (attr->key, "group") == 0) {
@@ -248,7 +248,6 @@ configure_pending_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
     SdpMediaConfig ** mconf)
 {
   const gchar *val;
-
   GSList *l;
 
   val = gst_sdp_media_get_attribute_val (media, "mid");
@@ -260,7 +259,6 @@ configure_pending_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
 
   for (l = ctx->groups; l != NULL; l = l->next) {
     SdpMediaGroup *group = l->data;
-
     GSList *ll;
 
     for (ll = group->medias; ll != NULL; ll = ll->next) {
@@ -293,7 +291,6 @@ configure_new_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
   mid = g_strdup (gst_sdp_media_get_attribute_val (media, "mid"));
   if (mid == NULL) {
     const gchar *media_type;
-
     guint *counter;
 
     media_type = gst_sdp_media_get_media (media);
@@ -381,12 +378,10 @@ gint
 kms_sdp_media_config_get_abs_send_time_id (SdpMediaConfig * mconf)
 {
   GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
-
   guint a;
 
   for (a = 0;; a++) {
     const gchar *attr;
-
     gchar **tokens;
 
     attr = gst_sdp_media_get_attribute_val_n (media, EXT_MAP, a);
@@ -436,7 +431,6 @@ static void
 add_group_to_sdp_message (SdpMediaGroup * group, GstSDPMessage * msg)
 {
   gchar *val;
-
   GSList *l;
 
   if (g_slist_length (group->medias) <= 0) {
@@ -448,7 +442,6 @@ add_group_to_sdp_message (SdpMediaGroup * group, GstSDPMessage * msg)
 
   for (l = group->medias; l != NULL; l = l->next) {
     SdpMediaConfig *mconf = l->data;
-
     gchar *tmp;
 
     if (mconf->media == NULL || gst_sdp_media_get_port (mconf->media) == 0) {
@@ -469,9 +462,7 @@ GstSDPMessage *
 kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
 {
   GstSDPMessage *msg;
-
   gchar *sdp_str;
-
   GSList *l;
 
   gst_sdp_message_new (&msg);
@@ -590,13 +581,9 @@ kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
 
   for (i = 0;; i++) {
     SdpMediaGroup *mgroup;
-
     gboolean is_bundle;
-
     const gchar *val;
-
     gchar **grp;
-
     guint j;
 
     val = gst_sdp_message_get_attribute_val_n (offer, "group", i);
@@ -641,7 +628,6 @@ static gboolean
 add_media_context (const GstSDPMedia * media, struct SdpMediaContextData *data)
 {
   SdpMessageContext *ctx = data->ctx;
-
   GstSDPMedia *cpy;
 
   if (gst_sdp_media_copy (media, &cpy) != GST_SDP_OK) {
@@ -662,9 +648,7 @@ copy_session_attributes (SdpMessageContext * ctx, const GstSDPMessage * msg,
     GError ** error)
 {
   const GstSDPOrigin *o1;
-
   const GstSDPConnection *conn;
-
   const gchar *s;
 
   o1 = gst_sdp_message_get_origin (msg);
@@ -703,9 +687,7 @@ SdpMessageContext *
 kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
 {
   struct SdpMediaContextData data;
-
   SdpMessageContext *ctx;
-
   const GstSDPOrigin *o;
 
   ctx = kms_sdp_message_context_new (error);
