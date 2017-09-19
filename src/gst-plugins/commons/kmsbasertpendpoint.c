@@ -1469,12 +1469,16 @@ kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (KmsBaseRtpEndpoint * self,
 #ifdef DTMFSRC
   GstPadTemplate *rtpdtmfmux_priority_sink_pad_template;
 
-  GstPad * rtpdtmfmux_priority_sink_pad;
-  GstPad * rtpdtmfsrc_src_pad;
-  
-#endif /*  */
-      GstPadTemplate * rtpdtmfmux_normal_sink_pad_template;
-  GstPad * rtpdtmfmux_normal_sink_pad, *payloader_src_pad;
+  GstPad *rtpdtmfmux_priority_sink_pad;
+
+  GstPad *rtpdtmfsrc_src_pad;
+
+#endif /* 
+        */
+  GstPadTemplate *rtpdtmfmux_normal_sink_pad_template;
+
+  GstPad *rtpdtmfmux_normal_sink_pad, *payloader_src_pad;
+
   GstElement *rtpbin = self->priv->rtpbin;
 
   GstElement *rtpdtmfmux = gst_element_factory_make ("rtpdtmfmux", NULL);
@@ -1483,6 +1487,8 @@ kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (KmsBaseRtpEndpoint * self,
   GstElement *rtpdtmfsrc = gst_element_factory_make ("rtpdtmfsrc", NULL);
 
   g_object_set (rtpdtmfsrc, "pt", ipt, NULL);
+  g_object_set (rtpdtmfsrc, "ptime", 20, NULL); //20ms to get the correct duration (ptime * clockrate / 1000)
+  g_object_set (rtpdtmfsrc, "packet-redundancy", 3, NULL);      //send 3 start and stop pakets
 
   gst_bin_add (GST_BIN (self), rtpdtmfsrc);
 #endif
@@ -1495,18 +1501,24 @@ kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (KmsBaseRtpEndpoint * self,
   rtpdtmfmux_priority_sink_pad_template =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (rtpdtmfmux),
       "priority_sink_%u");
-  rtpdtmfmux_priority_sink_pad =
+
+  rtpdtmfmux_priority_sink_pad =
       gst_element_request_pad (rtpdtmfmux,
       rtpdtmfmux_priority_sink_pad_template, NULL, NULL);
-  rtpdtmfsrc_src_pad = gst_element_get_static_pad (rtpdtmfsrc, "src");
-  gst_pad_link (rtpdtmfsrc_src_pad, rtpdtmfmux_priority_sink_pad);
-  gst_element_sync_state_with_parent (rtpdtmfsrc);
-  
-#endif /*  */
-      rtpdtmfmux_normal_sink_pad_template =
+
+  rtpdtmfsrc_src_pad = gst_element_get_static_pad (rtpdtmfsrc, "src");
+
+  gst_pad_link (rtpdtmfsrc_src_pad, rtpdtmfmux_priority_sink_pad);
+
+  gst_element_sync_state_with_parent (rtpdtmfsrc);
+
+#endif /* 
+        */
+  rtpdtmfmux_normal_sink_pad_template =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (rtpdtmfmux),
       "sink_%u");
-  rtpdtmfmux_normal_sink_pad =
+
+  rtpdtmfmux_normal_sink_pad =
       gst_element_request_pad (rtpdtmfmux, rtpdtmfmux_normal_sink_pad_template,
       NULL, NULL);
   payloader_src_pad = gst_element_get_static_pad (payloader, "src");
@@ -1562,6 +1574,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
       GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, localcaps);
     } else {
       gint clock_rate;
+
       gchar *codec_name = NULL;
 
       GST_DEBUG_OBJECT (self, "Found more caps: %" GST_PTR_FORMAT, localcaps);
@@ -1570,6 +1583,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
           && sdp_utils_get_data_from_rtpmap (rtpmap, &codec_name,
               &clock_rate)) {
         GstElement *rtpbin = self->priv->rtpbin;
+
         gchar *name = GST_OBJECT_NAME ((GST_OBJECT_PARENT (rtpbin)));
 
         if (g_str_has_prefix (name, "kmsrtpendpoint")) {

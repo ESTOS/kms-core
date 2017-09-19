@@ -91,6 +91,10 @@ private:
   gulong connStateChangedHandlerId;
   std::recursive_mutex mutex;
 
+  gulong busHandlerId;
+  GstElement *mypipeline;
+
+  void mybusMessage (GstMessage *message);
   void updateMediaState (guint new_state);
   void updateConnectionState (gchar *sessId, guint new_state);
 
@@ -104,9 +108,6 @@ private:
   };
 
   static StaticConstructor staticConstructor;
-
-public:
-  GstElement *mypipeline;
 
 };
 

@@ -63,132 +63,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
-#ifdef DTMF_HANDLER
-static void busMessage (GstBus *bus, GstMessage *message, void *data)
-{
-  if (message == NULL) {
-    return;
-  }
-
-  if (bus == NULL) {
-    return;
-  }
-
-  if (data == NULL) {
-    return;
-  }
-
-  switch (message->type) {
-  case GST_MESSAGE_ELEMENT: {
-    const GstStructure *s = gst_message_get_structure (message);
-    const gchar *name = gst_structure_get_name (s);
-
-    if (g_str_equal (name, "dtmf-event") ) {
-      BaseRtpEndpointImpl *self = reinterpret_cast <BaseRtpEndpointImpl *> (data);
-
-      /* first step we only bridge dtmf from webrtc to rtp
-      then we try to get the other side working
-      so we must listen on the rtpendpoint on the bus if there is a dtmf-event und then post it to rtpdtmfsrc
-
-      message->src->name == "rtpdtmfdepay0"
-      message->src->parent->name == "kmswebrtcendpoint1"
-      */
-      if (self && self->bIsThisaRtpendpoint() == TRUE) {
-        gchar *name = GST_OBJECT_NAME ( (GST_OBJECT_PARENT (message->src) ) );
-
-        if (g_str_has_prefix (name, "kmswebrtcendpoint") ) {
-          //"dtmf-event from kmswebrtcendpoint -> kmsrtpendpoint"
-          gint event_number;
-          gint event_volume;
-          gint event_type;
-          gint method;
-
-          gst_structure_get_int (s, "number", &event_number);
-          gst_structure_get_int (s, "volume", &event_volume);
-          gst_structure_get_int (s, "type", &event_type);
-          gst_structure_get_int (s, "method", &method);
-
-          GST_DEBUG_OBJECT (self, "Sending DTMF-EVENT Number %d", event_number);
-
-          GstStructure *structure;
-          GstEvent *event;
-          structure = gst_structure_new ("dtmf-event",
-                                         "type", G_TYPE_INT, 1,
-                                         "number", G_TYPE_INT, (gint) event_number,
-                                         "volume", G_TYPE_INT, (gint) event_volume,
-                                         "start", G_TYPE_BOOLEAN, (gboolean) TRUE, NULL); //an
-
-          event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
-
-          if (gst_element_send_event (self->mypipeline, event) ) {
-            /*toll*/
-          } else {
-            /*nich so toll*/
-          }
-
-          structure = gst_structure_new ("dtmf-event",
-                                         "type", G_TYPE_INT, 1,
-                                         "number", G_TYPE_INT, (gint) event_number,
-                                         "volume", G_TYPE_INT, (gint) event_volume,
-                                         "start", G_TYPE_BOOLEAN, (gboolean) FALSE, NULL); //aus
-
-          event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
-
-          if (gst_element_send_event (self->mypipeline, event) ) {
-            /*toll*/
-          } else {
-            /*nich so toll*/
-          }
-        }
-      }
-    }
-
-    break;
-  }
-
-  default:
-    break;
-  }
-}
-#endif // DTMF_HANDLER
-
-/* PLS NOTE regarding the code above:
-gstrtpdtmfdepay.c transmits on the bus a structure like:
-  structure = gst_structure_new("dtmf-event",
-    "number", G_TYPE_INT, dtmf_payload.event,
-    "volume", G_TYPE_INT, dtmf_payload.volume,
-    "type", G_TYPE_INT, 1,
-    "method", G_TYPE_INT, 1, NULL);
-
-BUT gstrtpdtmfsrc.c expects to see the structure like below:
-  structure = gst_structure_new("dtmf-event",
-    "type", G_TYPE_INT, 1,
-    "number", G_TYPE_INT, (gint)1,
-    "volume", G_TYPE_INT, (gint)25,
-    "start", G_TYPE_BOOLEAN, (gboolean)TRUE, NULL);
-
-  GstStructure *structure;
-  GstEvent *event;
-  structure = gst_structure_new("dtmf-event",
-    "type", G_TYPE_INT, 1,
-    "number", G_TYPE_INT, (gint)event_number,
-    "volume", G_TYPE_INT, (gint)event_volume,
-    "start", G_TYPE_BOOLEAN, (gboolean)TRUE, NULL); //an
-
-  event = gst_event_new_custom(GST_EVENT_CUSTOM_UPSTREAM, structure);
-  if (gst_element_send_event(self->mypipeline, event)) {  }
-  else { }
-
-  structure = gst_structure_new("dtmf-event",
-    "type", G_TYPE_INT, 1,
-    "number", G_TYPE_INT, (gint)event_number,
-    "volume", G_TYPE_INT, (gint)event_volume,
-    "start", G_TYPE_BOOLEAN, (gboolean)FALSE, NULL); //aus
-
-  event = gst_event_new_custom(GST_EVENT_CUSTOM_UPSTREAM, structure);
-  if (gst_element_send_event(self->mypipeline, event)){ }
-  else { }
-*/
 
 void BaseRtpEndpointImpl::postConstructor ()
 {
@@ -224,9 +98,18 @@ void BaseRtpEndpointImpl::postConstructor ()
         bus = gst_pipeline_get_bus (GST_PIPELINE (mypipeline) );
 
         if (bus) {
-          gst_bus_add_signal_watch (bus);
-          g_signal_connect (G_OBJECT (bus), "message::element", (GCallback) busMessage,
-                            this);
+          busHandlerId = register_signal_handler (G_OBJECT (bus),
+                                                  "message",
+                                                  std::function <
+                                                  void (GstElement *,
+                                                      GstMessage *) >
+                                                  (std::bind
+                                                      (&BaseRtpEndpointImpl::
+                                                          mybusMessage, this,
+                                                          std::placeholders::_2) ),
+                                                  std::dynamic_pointer_cast <
+                                                  BaseRtpEndpointImpl >
+                                                  (shared_from_this() ) );
           gst_object_unref (bus);
         } else {
           GST_ERROR (" no bus");
@@ -255,9 +138,10 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
   current_conn_state = std::make_shared <ConnectionState>
                        (ConnectionState::DISCONNECTED);
   connStateChangedHandlerId = 0;
-#ifdef DTMF_HANDLER
+
+  busHandlerId = 0;
+
   mypipeline = 0;
-#endif // DTMF_HANDLER
 
 
   try {
@@ -296,7 +180,10 @@ BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
       bus = gst_pipeline_get_bus (GST_PIPELINE (mypipeline) );
 
       if (bus) {
-        gst_bus_remove_signal_watch (bus);
+        if (busHandlerId > 0) {
+          unregister_signal_handler (bus, busHandlerId);
+        }
+
         g_object_unref (bus);
       } else {
         GST_ERROR (" no bus");
@@ -307,6 +194,113 @@ BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
   }
 
 #endif // DTMF_HANDLER
+}
+
+void BaseRtpEndpointImpl::mybusMessage (GstMessage *message)
+{
+#ifdef DTMF_HANDLER
+
+  if (message == NULL) {
+    return;
+  }
+
+  switch (message->type) {
+  case GST_MESSAGE_ELEMENT: {
+    const GstStructure *s = gst_message_get_structure (message);
+    const gchar *name = gst_structure_get_name (s);
+
+    if (g_str_equal (name, "dtmf-event") ) {
+      /* first step we only bridge dtmf from webrtc to rtp
+      then we try to get the other side working
+      so we must listen on the rtpendpoint on the bus if there is a dtmf-event und then post it to rtpdtmfsrc
+
+      message->src->name == "rtpdtmfdepay0"
+      message->src->parent->name == "kmswebrtcendpoint1"
+      */
+      if (bIsThisaRtpendpoint() == TRUE) {
+        gchar *name = GST_OBJECT_NAME ( (GST_OBJECT_PARENT (message->src) ) );
+
+        if (g_str_has_prefix (name, "kmswebrtcendpoint") ) {
+          //"dtmf-event from kmswebrtcendpoint -> kmsrtpendpoint"
+          gint event_number;
+          gint event_volume;
+          gint event_type;
+          gint method;
+
+          gst_structure_get_int (s, "number", &event_number);
+          gst_structure_get_int (s, "volume", &event_volume);
+          gst_structure_get_int (s, "type", &event_type);
+          gst_structure_get_int (s, "method", &method);
+
+          GST_DEBUG_OBJECT (this, "Sending DTMF-EVENT Number %d", event_number);
+
+          GstStructure *structure;
+          GstEvent *event;
+          structure = gst_structure_new ("dtmf-event",
+                                         "type", G_TYPE_INT, 1,
+                                         "number", G_TYPE_INT, (gint) event_number,
+                                         "volume", G_TYPE_INT, (gint) event_volume,
+                                         "start", G_TYPE_BOOLEAN, (gboolean) TRUE, NULL); //an
+
+          event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
+
+          if (gst_element_send_event (mypipeline, event) ) {
+            /*toll*/
+          } else {
+            /*nich so toll*/
+          }
+
+          structure = gst_structure_new ("dtmf-event",
+                                         "type", G_TYPE_INT, 1,
+                                         "number", G_TYPE_INT, (gint) event_number,
+                                         "volume", G_TYPE_INT, (gint) event_volume,
+                                         "start", G_TYPE_BOOLEAN, (gboolean) FALSE, NULL); //aus
+
+          event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
+
+          if (gst_element_send_event (mypipeline, event) ) {
+            /*toll*/
+          } else {
+            /*nich so toll*/
+          }
+        }
+      }
+    }
+
+    break;
+  }
+
+  default:
+    break;
+  }
+
+#endif // DTMF_HANDLER
+  /*
+  Zoiper + Snom duration:
+  160 (0xa0)
+  320
+  480
+  640
+  800
+  960 end
+  960 end
+  960 end
+
+  PLS NOTE regarding the code above:
+  gstrtpdtmfdepay.c transmits on the bus a structure like:
+  structure = gst_structure_new("dtmf-event",
+  "number", G_TYPE_INT, dtmf_payload.event,
+  "volume", G_TYPE_INT, dtmf_payload.volume,
+  "type", G_TYPE_INT, 1,
+  "method", G_TYPE_INT, 1, NULL);
+
+  BUT gstrtpdtmfsrc.c expects to see the structure like below:
+  structure = gst_structure_new("dtmf-event",
+  "type", G_TYPE_INT, 1,
+  "number", G_TYPE_INT, (gint)1,
+  "volume", G_TYPE_INT, (gint)25,
+  "start", G_TYPE_BOOLEAN, (gboolean)TRUE, NULL);
+  */
 }
 
 void
