@@ -30,6 +30,8 @@
 #include "kms-sdp-agent-enumtypes.h"
 #include "kmssdpagentstate.h"
 
+#include "time.h"
+
 #define PLUGIN_NAME "sdpagent"
 
 GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
@@ -204,10 +206,34 @@ ipv2str (SdpIPv ipv)
   }
 }
 
+/*
 static guint64
 get_ntp_time ()
 {
   return time (NULL) + G_GUINT64_CONSTANT (2208988800);
+}
+*/
+
+//SIX-1736 ru-bu
+static guint64
+get_millisecond_time ()
+{
+  guint64 ms;                   // Milliseconds
+
+  guint64 s;                    // Seconds
+
+  struct timespec spec;
+
+  guint64 time_ms;
+
+  clock_gettime (CLOCK_REALTIME, &spec);
+
+  s = spec.tv_sec;
+  s = s * 1000;
+  ms = spec.tv_nsec / 1000000;
+  time_ms = s + ms;
+
+  return time_ms;
 }
 
 static void
@@ -239,7 +265,8 @@ generate_sdp_session_description (SdpSessionDescription * desc)
   /* creating tool, but it has been suggested that a Network Time Protocol */
   /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
 
-  desc->id = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+  //desc->id = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+  desc->id = g_strdup_printf ("%" G_GUINT64_FORMAT, get_millisecond_time ());   //SIX-1736 ru-bu
   desc->version = g_strdup (desc->id);
 }
 
@@ -506,6 +533,7 @@ kms_sdp_agent_create_media_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler, GError ** err)
 {
   SdpHandler *sdp_handler;
+
   gint id = -1;
 
   id = agent->priv->hids++;
@@ -534,6 +562,7 @@ kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler, GError ** err)
 {
   SdpHandler *sdp_handler;
+
   const gchar *addr_type;
 
   sdp_handler = kms_sdp_agent_create_media_handler (agent, media, handler, err);
@@ -561,6 +590,7 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler, GError ** error)
 {
   gchar *proto;
+
   gint id = -1;
 
   g_object_get (handler, "proto", &proto, NULL);
@@ -603,6 +633,7 @@ gint
 kms_sdp_agent_get_handler_index_impl (KmsSdpAgent * agent, gint hid)
 {
   SdpHandler *sdp_handler;
+
   gint index = -1;
 
   SDP_AGENT_LOCK (agent);
@@ -643,6 +674,7 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid,
     GError ** error)
 {
   SdpHandler *sdp_handler;
+
   gboolean ret = TRUE;
 
   SDP_AGENT_LOCK (agent);
@@ -687,7 +719,9 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** error)
 {
   GstSDPMessage *desc;
+
   GstSDPMedia *media = NULL;
+
   guint index;
 
   index = sdp_handler->sdph->index;
@@ -747,6 +781,7 @@ static KmsSdpMediaHandler *
 create_reject_handler ()
 {
   KmsSdpMediaDirectionExt *ext;
+
   KmsSdpMediaHandler *handler;
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_reject_media_handler_new ());
@@ -767,7 +802,9 @@ static void
 reject_sdp_media (GstSDPMedia ** media)
 {
   KmsSdpMediaHandler *handler = create_reject_handler ();
+
   GstSDPMedia *rejected;
+
   KmsSdpMidExt *ext;
 
   ext = kms_sdp_mid_ext_new ();
@@ -790,6 +827,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** err)
 {
   GstSDPMedia *media, *prev;
+
   guint index;
 
   if (sdp_handler->disabled || sdp_handler->rejected) {
@@ -868,6 +906,7 @@ kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
     GstSDPMessage * offer, guint index, GError ** err)
 {
   GstSDPMedia *media;
+
   gboolean ret = TRUE;
 
   media = kms_sdp_agent_create_proper_media_offer (agent, sdp_handler, err);
@@ -920,8 +959,11 @@ kms_sdp_agent_increment_sess_version (KmsSdpAgent * agent, GstSDPMessage * msg,
     GError ** error)
 {
   guint64 sess_version;
+
   const GstSDPOrigin *orig;
+
   GstSDPOrigin new_orig;
+
   gboolean ret;
 
   orig = gst_sdp_message_get_origin (agent->priv->local_description);
@@ -1077,6 +1119,7 @@ kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, GstSDPMessage * offer,
     GError ** error)
 {
   guint index = 0;
+
   GSList *l;
 
   for (l = agent->priv->offer_handlers; l != NULL; l = g_slist_next (l)) {
@@ -1093,6 +1136,7 @@ kms_sdp_agent_offer_processing_extensions (KmsSdpAgent * agent,
     GstSDPMessage * offer, gboolean pre_process, GError ** error)
 {
   gboolean pre_proc;
+
   GSList *l;
 
   for (l = agent->priv->extensions; l != NULL; l = g_slist_next (l)) {
@@ -1119,6 +1163,7 @@ kms_sdp_agent_exec_answer_session_extensions (KmsSdpAgent * agent,
     GError ** error)
 {
   gboolean pre_proc;
+
   GSList *l;
 
   for (l = agent->priv->extensions; l != NULL; l = g_slist_next (l)) {
@@ -1169,9 +1214,13 @@ static GstSDPMessage *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
   GstSDPMessage *offer = NULL;
+
   GstSDPOrigin o;
+
   GSList *tmp = NULL;
+
   gboolean state_changed = FALSE;
+
   gboolean failed = TRUE;
 
   SDP_AGENT_LOCK (agent);
@@ -1277,8 +1326,11 @@ static SdpHandler *
 kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
 {
   KmsSdpMediaHandler *handler;
+
   GError *err = NULL;
+
   gchar *proto;
+
   gint hid;
 
   if (agent->priv->callbacks.callbacks.on_handler_required == NULL) {
@@ -1328,11 +1380,17 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
     const GstSDPMedia * media, const GstSDPMessage * offer)
 {
   GList *groups;
+
   const gchar *mid, *mids;
+
   KmsSdpBaseGroup *group;
+
   gchar *semantics = NULL;
+
   gchar **items = NULL;
+
   guint i, len;
+
   gint gid;
 
   groups = kms_sdp_group_manager_get_groups (agent->priv->group_manager);
@@ -1390,6 +1448,7 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
     const GstSDPMedia * media, const GstSDPMessage * offer)
 {
   SdpHandler *handler;
+
   GSList *l;
 
   for (l = agent->priv->handlers; l != NULL; l = l->next) {
@@ -1446,6 +1505,7 @@ kms_sdp_agent_replace_offered_handler (KmsSdpAgent * agent,
     SdpHandler * handler)
 {
   SdpHandler *candidate;
+
   GSList *l;
 
   l = g_slist_find (agent->priv->offer_handlers, handler);
@@ -1539,9 +1599,13 @@ static gboolean
 create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
+
   GstSDPMedia *answer_media = NULL;
+
   SdpHandler *sdp_handler;
+
   GError **err = data->err;
+
   gboolean ret = TRUE;
 
   sdp_handler = kms_sdp_agent_select_handler_to_answer_media (agent,
@@ -1657,6 +1721,7 @@ static gboolean
 intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   GstSDPMessage *answer = user_data;
+
   guint i, len;
 
   if (g_strcmp0 (attr->key, "group") == 0) {
@@ -1688,8 +1753,11 @@ kms_sdp_agent_generate_answer (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
   GstSDPMessage *answer = NULL;
+
   struct SdpAnswerData data;
+
   gboolean success = FALSE;
+
   GstSDPOrigin o;
 
   kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
@@ -1794,7 +1862,9 @@ kms_sdp_agent_process_answered_description (KmsSdpAgent * agent,
 
   for (index = 0; index < len; index++) {
     const GstSDPMedia *media;
+
     SdpHandler *handler;
+
     GSList *item;
 
     item = g_slist_nth (agent->priv->offer_handlers, index);
@@ -1817,7 +1887,9 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
 {
   KmsSDPAgentState new_state;
+
   const GstSDPOrigin *orig;
+
   gboolean ret = FALSE;
 
   SDP_AGENT_LOCK (agent);
@@ -1879,6 +1951,7 @@ update_rejected_medias (KmsSdpAgent * agent, const GstSDPMessage * desc)
 
   for (i = 0; i < len; i++) {
     const GstSDPMedia *media;
+
     SdpHandler *handler;
 
     media = gst_sdp_message_get_media (desc, i);
@@ -1899,12 +1972,14 @@ static void
 kms_sdp_agent_process_answer (KmsSdpAgent * agent)
 {
   GError *err = NULL;
+
   guint i, len;
 
   len = gst_sdp_message_medias_len (agent->priv->prev_sdp);
 
   for (i = 0; i < len; i++) {
     const GstSDPMedia *media;
+
     SdpHandler *handler;
 
     media = gst_sdp_message_get_media (agent->priv->prev_sdp, i);
@@ -2172,6 +2247,7 @@ kms_sdp_agent_set_callbacks (KmsSdpAgent * agent,
     GDestroyNotify destroy)
 {
   GDestroyNotify notify;
+
   gpointer old_data;
 
   g_return_if_fail (KMS_IS_SDP_AGENT (agent));
@@ -2202,8 +2278,11 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
     GError ** error, const char *optname1, ...)
 {
   gboolean failed;
+
   gpointer obj;
+
   va_list ap;
+
   gint gid;
 
   va_start (ap, optname1);
@@ -2317,7 +2396,9 @@ gint
 kms_sdp_agent_get_handler_group_id (KmsSdpAgent * agent, guint hid)
 {
   KmsSdpBaseGroup *group;
+
   SdpHandler *handler;
+
   gint gid = -1;
 
   SDP_AGENT_LOCK (agent);
@@ -2348,7 +2429,9 @@ KmsSdpMediaHandler *
 kms_sdp_agent_get_handler_by_index (KmsSdpAgent * agent, guint index)
 {
   KmsSdpMediaHandler *ret = NULL;
+
   SdpHandler *handler;
+
   GSList *item;
 
   SDP_AGENT_LOCK (agent);
