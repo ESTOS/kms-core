@@ -48,6 +48,7 @@ static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
 #define MAX_VIDEO_RECV_BW_DEFAULT 500
 #define MAX_AUDIO_RECV_BW_DEFAULT 0
 #define REUSE_SOCKETS_DEFAULT FALSE
+#define USE_RTPEP_AVPF_DEFAULT FALSE
 
 #define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
 
@@ -92,6 +93,7 @@ enum
   PROP_MAX_AUDIO_RECV_BW,
   PROP_USE_DATA_CHANNELS,
   PROP_REUSE_SOCKET,
+  PROP_USE_RTPEP_AVPF,
   N_PROPERTIES
 };
 
@@ -121,6 +123,7 @@ struct _KmsBaseSdpEndpointPrivate
   guint data_handlers;
 
   gboolean reuse_socket;
+  gboolean use_rtpep_avpf;
 };
 
 /* KmsSdpSession begin */
@@ -944,6 +947,9 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
     case PROP_REUSE_SOCKET:
       self->priv->reuse_socket = g_value_get_boolean (value);
       break;
+    case PROP_USE_RTPEP_AVPF:
+      self->priv->use_rtpep_avpf = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -994,6 +1000,9 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
       break;
     case PROP_USE_DATA_CHANNELS:
       g_value_set_boolean (value, self->priv->use_data_channels);
+      break;
+    case PROP_USE_RTPEP_AVPF:
+      g_value_set_boolean (value, self->priv->use_rtpep_avpf);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1232,6 +1241,11 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
           "reuse-socket",
           REUSE_SOCKETS_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_USE_RTPEP_AVPF,
+      g_param_spec_boolean ("use-rtpep-avpf", "On rtpendpoints use avpf",
+          "Use avpf on rtpendpoints if TRUE",
+          USE_RTPEP_AVPF_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_type_class_add_private (klass, sizeof (KmsBaseSdpEndpointPrivate));
 }
 
@@ -1251,6 +1265,7 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
   self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
   self->priv->max_audio_recv_bw = MAX_AUDIO_RECV_BW_DEFAULT;
   self->priv->reuse_socket = REUSE_SOCKETS_DEFAULT;
+  self->priv->use_rtpep_avpf = USE_RTPEP_AVPF_DEFAULT;
 }
 
 GHashTable *

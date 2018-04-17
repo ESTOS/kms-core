@@ -36,6 +36,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_VIDEO_CODECS "videoCodecs"
 #define PARAM_LOCAL_ADDRESS "localAddress"
 #define PARAM_SOCKET_REUSE "socketreuse"
+#define PARAM_RTPEP_AVPF "rtpepavpfuse"
 
 namespace kurento
 {
@@ -145,9 +146,9 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   SessionEndpointImpl (config, parent, factoryName)
 {
   GArray *audio_codecs, *video_codecs;
-  guint audio_medias, video_medias, socket_reuse;
+  guint audio_medias, video_medias, socket_reuse, use_rtpep_avpf;
   std::string local_address;
-  bool bdosocketreuse;
+  bool bdosocketreuse, rtpepavpfuse;
 
   if (factoryName == "rtpendpoint") {
     isrtpendpoint = TRUE;
@@ -167,12 +168,15 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   local_address = getConfigValue<std::string, SdpEndpoint> (PARAM_LOCAL_ADDRESS,
                   "");
   socket_reuse = getConfigValue <guint, SdpEndpoint> (PARAM_SOCKET_REUSE, 1);
+  use_rtpep_avpf = getConfigValue <guint, SdpEndpoint> (PARAM_RTPEP_AVPF, 1);
 
   if (socket_reuse == 1 && isrtpendpoint == TRUE) {
     dosocketreuse = TRUE;
   } else {
     dosocketreuse = FALSE;
   }
+
+  rtpepavpfuse = (use_rtpep_avpf == 0) ? FALSE : TRUE;
 
   try {
     std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
@@ -213,6 +217,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
 
   bdosocketreuse = dosocketreuse;
   g_object_set (element, "reuse-socket", bdosocketreuse, NULL);
+  g_object_set (element, "use-rtpep-avpf", rtpepavpfuse, NULL);
 
   offerInProcess = false;
   waitingAnswer = false;
