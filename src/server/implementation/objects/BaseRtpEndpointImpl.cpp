@@ -14,7 +14,12 @@
  * limitations under the License.
  *
  */
-#define DTMF_HANDLER
+
+/*
+ru-bu SIX-1909 dtmf handler is now in gstpipeline.c until we find out
+why the gst_bus_source_dispatch is not triggered some times after gstrtpdtmfdepay.c calls gst_element_post_message
+*/
+//#define DTMF_HANDLER
 
 #include <gst/gst.h>
 #include "BaseRtpEndpointImpl.hpp"
@@ -236,25 +241,16 @@ void BaseRtpEndpointImpl::mybusMessage (GstMessage *message)
 
           GstStructure *structure;
           GstEvent *event;
-          structure = gst_structure_new ("dtmf-event",
-                                         "type", G_TYPE_INT, 1,
-                                         "number", G_TYPE_INT, (gint) event_number,
-                                         "volume", G_TYPE_INT, (gint) event_volume,
-                                         "start", G_TYPE_BOOLEAN, (gboolean) TRUE, NULL); //an
-
-          event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
-
-          if (gst_element_send_event (mypipeline, event) ) {
-            /*toll*/
-          } else {
-            /*nich so toll*/
-          }
+          gint maxduration = 800;
 
           structure = gst_structure_new ("dtmf-event",
                                          "type", G_TYPE_INT, 1,
                                          "number", G_TYPE_INT, (gint) event_number,
                                          "volume", G_TYPE_INT, (gint) event_volume,
-                                         "start", G_TYPE_BOOLEAN, (gboolean) FALSE, NULL); //aus
+                                         "start", G_TYPE_BOOLEAN, (gboolean) TRUE,
+                                         "maxduration", G_TYPE_INT, (gint) maxduration,
+                                         "parentname", G_TYPE_STRING, name,   //parent of the sender of the dtmf-event
+                                         NULL); //an+duration
 
           event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, structure);
 
@@ -276,7 +272,7 @@ void BaseRtpEndpointImpl::mybusMessage (GstMessage *message)
 
 #endif // DTMF_HANDLER
   /*
-  Zoiper + Snom duration:
+  Zoiper + Snom duration (Linphone 800):
   160 (0xa0)
   320
   480
