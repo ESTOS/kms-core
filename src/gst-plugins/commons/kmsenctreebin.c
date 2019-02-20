@@ -26,6 +26,7 @@
 #define GST_CAT_DEFAULT kms_enc_tree_bin_debug
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
+#define LEAKY_TIME 600000000    /*600 ms */
 #define kms_enc_tree_bin_parent_class parent_class
 G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
 
@@ -105,7 +106,7 @@ set_encoder_configuration (GstElement * encoder, GstStructure * codec_config,
       const gchar *name = g_param_spec_get_name (props[i]);
 
       if (gst_structure_has_field (config, name)) {
-        GValue final_value = { 0, };
+        GValue final_value = G_VALUE_INIT;
         gchar *st_value;
         const GValue *val;
 
@@ -288,7 +289,7 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
     return;
   }
 
-  GST_DEBUG_OBJECT (self->priv->enc, "Setting encoding bitrate to: %d",
+  GST_DEBUG_OBJECT (self->priv->enc, "Set target encoding bitrate: %d bps",
       target_bitrate);
 
   switch (self->priv->enc_type) {
@@ -298,8 +299,6 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "target-bitrate", &last_br, NULL);
       if (last_br / 1000 != target_bitrate / 1000) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "target-bitrate", target_bitrate, NULL);
       }
       break;
@@ -310,8 +309,6 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
       if (last_br != new_br) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
       break;
@@ -322,13 +319,11 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
       if (last_br / 1000 != new_br / 1000) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
     }
     default:
-      GST_DEBUG ("Not setting bitrate, encoder not supported");
+      GST_DEBUG ("Skip setting bitrate, encoder not supported");
       break;
   }
 }
@@ -478,7 +473,8 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
   mediator = kms_utils_create_mediator_element (caps);
-  queue = gst_element_factory_make ("queue", NULL);
+  queue = kms_utils_element_factory_make ("queue", "enctreebin_");
+  g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
 
   if (rate) {
     gst_bin_add (GST_BIN (self), rate);
@@ -499,7 +495,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     GstCaps *filter_caps = gst_caps_from_string ("video/x-raw,format=I420");
     GstPad *sink;
 
-    capsfilter = gst_element_factory_make ("capsfilter", NULL);
+    capsfilter = kms_utils_element_factory_make ("capsfilter", "enctreebin_");
     sink = gst_element_get_static_pad (capsfilter, "sink");
     gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         check_caps_probe, NULL, NULL);

@@ -99,14 +99,14 @@ static GstStaticPadTemplate sink_factory =
 GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SINK_PAD,
     GST_PAD_SINK,
     GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS)
     );
 
 static GstStaticPadTemplate src_factory =
 GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
     GST_PAD_SRC,
     GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS)
     );
 
 static gboolean set_transcoder_src_target_pad (GstGhostPad *, GstElement *);
@@ -222,11 +222,18 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
     case KMS_SRC_PAD_STATE_UNCONFIGURED:{
       caps = gst_pad_peer_query_caps (srcpad, current_caps);
       transcode = gst_caps_is_empty (caps);
+      if (transcode) {
+        GST_DEBUG_OBJECT (srcpad, "No caps for source pad, transcode: 1");
+      }
       break;
     }
     case KMS_SRC_PAD_STATE_CONFIGURED:
       caps = gst_caps_ref (data->caps);
       transcode = !gst_caps_can_intersect (caps, current_caps);
+      if (transcode) {
+        GST_DEBUG_OBJECT (srcpad,
+            "Cannot intersect caps for source pad, transcode: 1");
+      }
       break;
     default:
       GST_ERROR_OBJECT (srcpad, "TODO: Operate in %s",

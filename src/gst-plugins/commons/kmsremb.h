@@ -46,7 +46,7 @@ struct _KmsRembLocal
 {
   KmsRembBase base;
 
-  GSList *remote_sessions;
+  GSList *remote_sessions; // List<KmsRlRemoteSession*>
   guint min_bw;
   guint max_bw;
 
@@ -59,6 +59,7 @@ struct _KmsRembLocal
   gint up_losses;
 
   guint remb;
+  guint remb_sent; // Used to limit logging at kms_remb_local_on_sending_rtcp()
   GstClockTime last_sent_time;
   gboolean probed;
   guint threshold;
@@ -66,8 +67,6 @@ struct _KmsRembLocal
   guint max_br;
   guint avg_br;
   GstClockTime last_time;
-  guint64 last_octets_received;
-  guint64 last_packets_received;
   guint64 fraction_lost_record;
   RembEventManager *event_manager;
 };

@@ -14,13 +14,24 @@
  * limitations under the License.
  *
  */
+
+#include <config.h>
+
 #include <gst/gst.h>
 #include "UriEndpointImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
+#if HAS_STD_REGEX_REPLACE
+#include <regex>
+using std::regex;
+using std::regex_replace;
+#else
 #include <boost/regex.hpp>
-#include "kmsuriendpointstate.h"
+using boost::regex;
+using boost::regex_replace;
+#endif
+#include "kmsuriendpoint.h"
 #include <SignalHandler.hpp>
 
 #define GST_CAT_DEFAULT kurento_uri_endpoint_impl
@@ -35,7 +46,7 @@ namespace kurento
 
 void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 {
-  boost::regex re ("//*");
+  regex re ("//*");
   gchar *location, *protocol;
 
   location = gst_uri_get_location (uri.c_str () );
@@ -53,7 +64,7 @@ void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
     uriWithoutProtocol.erase (0, 1);
   }
 
-  std::string uriWithoutSlash (boost::regex_replace (uriWithoutProtocol, re,
+  std::string uriWithoutSlash (regex_replace (uriWithoutProtocol, re,
                                "/") );
 
   if (uriProtocol == "file") {
@@ -65,8 +76,8 @@ void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 
 void UriEndpointImpl::checkUri ()
 {
-  boost::regex re ("%2F");
-  this->uri = (boost::regex_replace (uri, re, "/") );
+  regex re ("%2F");
+  this->uri = (regex_replace (uri, re, "/") );
   this->absolute_uri = this->uri;
 
   //Check if uri is an absolute or relative path.
@@ -151,21 +162,36 @@ UriEndpointImpl::~UriEndpointImpl ()
 
 void UriEndpointImpl::pause ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_PAUSE, NULL);
+  GError *error = nullptr;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_PAUSE, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 void UriEndpointImpl::stop ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_STOP, NULL);
+  GError *error = nullptr;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_STOP, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 void
 UriEndpointImpl::start ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_START, NULL);
+  GError *error = nullptr;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_START, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 std::string

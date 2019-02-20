@@ -73,7 +73,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
   g_mutex_unlock (&(((KmsElement *)obj)->priv->sync_lock))  \
 )
 
-#define KMS_SET_OBJECT_PROPERTY_SAFETLY(obj,name,val) ({      \
+#define KMS_SET_OBJECT_PROPERTY_SAFELY(obj,name,val) ({      \
   if (g_object_class_find_property (G_OBJECT_GET_CLASS (obj), \
       (name)) != NULL) {                                      \
     GST_DEBUG_OBJECT (obj, "Setting property %s", name);      \
@@ -172,6 +172,7 @@ enum
   STATS,
   SIGNAL_FLOW_OUT_MEDIA,
   SIGNAL_FLOW_IN_MEDIA,
+  SIGNAL_MEDIA_TRANSCODING,
   LAST_SIGNAL
 };
 
@@ -689,14 +690,25 @@ static void
 kms_element_set_video_output_properties (KmsElement * self,
     GstElement * element)
 {
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, CODEC_CONFIG,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, CODEC_CONFIG,
       self->priv->codec_config);
 
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MAX_BITRATE,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, MAX_BITRATE,
       self->priv->max_bitrate);
 
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MIN_BITRATE,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, MIN_BITRATE,
       self->priv->min_bitrate);
+}
+
+static void
+on_agnosticbin_media_transcoding (GstBin * bin, gboolean is_transcoding,
+    KmsMediaType media_type, KmsElement * self)
+{
+  KmsElementPadType pad_type = kms_utils_convert_media_type (media_type);
+
+  g_signal_emit (self,
+      element_signals[SIGNAL_MEDIA_TRANSCODING], 0,
+      is_transcoding, GST_ELEMENT_NAME (bin), pad_type);
 }
 
 GstElement *
@@ -749,6 +761,10 @@ kms_element_get_output_element (KmsElement * self, KmsElementPadType pad_type,
     KmsMediaFlowTimeoutData *fdto_data;
 
     odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
+
+    g_signal_connect (odata->element, "media-transcoding",
+        G_CALLBACK (on_agnosticbin_media_transcoding), self);
+
     fdto_data =
         media_flow_timeout_data_new (self, desc, pad_type, KMS_MEDIA_FLOW_OUT);
     add_flow_out_event_probes_to_element_sinks (odata->element, fdto_data);
@@ -980,7 +996,7 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
 
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     kms_utils_drop_until_keyframe (pad, TRUE);
-    kms_utils_manage_gaps (pad);
+    kms_utils_pad_monitor_gaps (pad);
   }
 
   gst_pad_set_query_function (pad, kms_element_pad_query);
@@ -1188,7 +1204,7 @@ set_min_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     if (odata->element != NULL) {
-      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MIN_BITRATE,
+      KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, MIN_BITRATE,
           self->priv->min_bitrate);
     }
   }
@@ -1199,7 +1215,7 @@ set_max_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     if (odata->element != NULL) {
-      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MAX_BITRATE,
+      KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, MAX_BITRATE,
           self->priv->max_bitrate);
     }
   }
@@ -1210,7 +1226,7 @@ set_codec_config (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_AUDIO ||
       odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, CODEC_CONFIG,
+    KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, CODEC_CONFIG,
         self->priv->codec_config);
   }
 }
@@ -1906,6 +1922,21 @@ kms_element_class_init (KmsElementClass * klass)
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsElementClass, flow_in_state),
       NULL, NULL, __kms_core_marshal_VOID__BOOLEAN_STRING_ENUM, G_TYPE_NONE,
+      3, G_TYPE_BOOLEAN, G_TYPE_STRING, KMS_TYPE_ELEMENT_PAD_TYPE);
+
+  /* Signal "KmsElement::media-transcoding"
+   * Arguments:
+   * - self
+   * - Is transcoding?
+   * - GstBin (KmsAgnosticBin) name
+   * - Media type (audio/video)
+   */
+  element_signals[SIGNAL_MEDIA_TRANSCODING] =
+      g_signal_new ("media-transcoding",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsElementClass, media_transcoding),
+      NULL, NULL, NULL, G_TYPE_NONE,
       3, G_TYPE_BOOLEAN, G_TYPE_STRING, KMS_TYPE_ELEMENT_PAD_TYPE);
 
   klass->request_new_pad =

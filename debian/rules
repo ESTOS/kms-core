@@ -1,14 +1,10 @@
 #!/usr/bin/make -f
-# -*- makefile -*-
 
-# Uncomment this to turn on verbose mode.
+# Uncomment this to enable verbose mode.
 #export DH_VERBOSE=1
 
 %:
-	dh $@
-
-override_dh_auto_buid:
-	dh_auto_build -- -j2
+	dh $@ --parallel
 
 override_dh_auto_configure:
 	dh_auto_configure -- -DGENERATE_TESTS=TRUE -DCMAKE_INSTALL_SYSCONFDIR=/etc
@@ -16,7 +12,4 @@ override_dh_auto_configure:
 .PHONY: override_dh_strip
 
 override_dh_strip:
-	dh_strip --dbg-package=kms-core-6.0-dbg
-
-override_dh_auto_test:
-	dh_auto_build -- -j2 check ARGS=-j10
+	dh_strip --dbg-package=kms-core-dbg

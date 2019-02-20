@@ -1,20 +1,17 @@
-cmake_minimum_required (VERSION 2.8)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+cmake_minimum_required(VERSION 2.8)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWIN32_LEAN_AND_MEAN=1")
 endif ()
 
-include (CodeGenerator)
-
-set (KMS_CORE_INTERFACE_SOURCES
+set(KMS_CORE_INTERFACE_SOURCES
 )
-set (KMS_CORE_INTERFACE_HEADERS
+
+set(KMS_CORE_INTERFACE_HEADERS
   interface/KurentoException.hpp
 )
 
-set (KMS_CORE_IMPL_SOURCES
+set(KMS_CORE_IMPL_SOURCES
   implementation/EventHandler.cpp
   implementation/Factory.cpp
   implementation/MediaSet.cpp
@@ -25,7 +22,7 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/DotGraph.cpp
 )
 
-set (KMS_CORE_IMPL_HEADERS
+set(KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
   implementation/Factory.hpp
   implementation/MediaSet.hpp
@@ -38,14 +35,13 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/SignalHandler.hpp
 )
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-
-generate_code (
+include(CodeGenerator)
+generate_code(
   MODELS ${CMAKE_CURRENT_SOURCE_DIR}/interface
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}
   INTERFACE_LIB_EXTRA_HEADERS ${KMS_CORE_INTERFACE_HEADERS}
   INTERFACE_LIB_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${KmsJsonRpc_INCLUDE_DIRS}
@@ -60,8 +56,9 @@ generate_code (
   SERVER_IMPL_LIB_EXTRA_HEADERS
       ${KMS_CORE_IMPL_HEADERS}
   SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons
+      ${CMAKE_CURRENT_BINARY_DIR}/../..
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins/commons
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${Boost_INCLUDE_DIRS}
       ${Boost_FILESYSTEM_INCLUDE_DIRS}
@@ -77,7 +74,7 @@ generate_code (
       kmsutils
       kmsgstcommons
   MODULE_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${gstreamer-1.5_INCLUDE_DIRS}
       ${gstreamer-sdp-1.5_INCLUDE_DIRS}
@@ -100,9 +97,9 @@ generate_code (
       "KmsJsonRpc ${JSON_RPC_REQUIRED}"
       "sigc++-2.0 ${sigc++-2.0_REQUIRED}"
       "glibmm-2.4 ${glibmm-2.4_REQUIRED}"
-      "LIBNAME Boost COMPONENTS filesystem system"
+      "LIBNAME Boost COMPONENTS ${BOOST_REQUIRED_COMPONENTS}"
 )
 
-if (NOT ${DISABLE_LIBRARIES_GENERATION})
+if(NOT ${DISABLE_LIBRARIES_GENERATION})
   add_dependencies(${LIBRARY_NAME}impl kmscoreplugins)
 endif()

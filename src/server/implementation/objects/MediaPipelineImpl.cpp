@@ -23,6 +23,7 @@
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
 #include <SignalHandler.hpp>
+#include <memory>
 #include "kmselement.h"
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
@@ -31,50 +32,71 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
+
 void
-MediaPipelineImpl::busMessage (GstMessage *message)
+MediaPipelineImpl::processBusMessage (GstMessage *msg)
 {
-  switch (message->type) {
-  case GST_MESSAGE_ERROR: {
-    GError *err = NULL;
-    gchar *debug = NULL;
+  GstDebugLevel log_level = GST_LEVEL_NONE;
+  GError *err = NULL;
+  gchar *dbg_info = NULL;
 
-    GST_ERROR ("Error on bus: %" GST_PTR_FORMAT, message);
-    gst_debug_bin_to_dot_file_with_ts (GST_BIN (pipeline),
-                                       GST_DEBUG_GRAPH_SHOW_ALL, "error");
-    gst_message_parse_error (message, &err, &debug);
-    std::string errorMessage;
-
-    if (err) {
-      errorMessage = std::string (err->message);
-    }
-
-    if (debug != NULL) {
-      errorMessage += " -> " + std::string (debug);
-    }
-
-    try {
-      gint code = 0;
-
-      if (err) {
-        code = err->code;
-      }
-
-      Error error (shared_from_this(), errorMessage, code,
-                   "UNEXPECTED_PIPELINE_ERROR");
-
-      signalError (error);
-    } catch (std::bad_weak_ptr &e) {
-    }
-
-    g_error_free (err);
-    g_free (debug);
+  switch (GST_MESSAGE_TYPE (msg) ) {
+  case GST_MESSAGE_ERROR:
+    log_level = GST_LEVEL_ERROR;
+    gst_message_parse_error (msg, &err, &dbg_info);
     break;
-  }
+
+  case GST_MESSAGE_WARNING:
+    log_level = GST_LEVEL_WARNING;
+    gst_message_parse_warning (msg, &err, &dbg_info);
+    break;
 
   default:
+    return;
     break;
   }
+
+  GstElement *parent = this->pipeline;
+  gint err_code = 0;
+  gchar *err_msg = NULL;
+
+  if (err != NULL) {
+    err_code = err->code;
+    err_msg = err->message;
+  }
+
+  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
+                     "Error code %d: '%s', element: %s, parent: %s", err_code,
+                     (err_msg ? err_msg : "(None)"), GST_MESSAGE_SRC_NAME (msg),
+                     GST_ELEMENT_NAME (parent) );
+
+  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
+                     "Debugging info: %s", (dbg_info ? dbg_info : "(None)") );
+
+  std::string errorMessage (err_msg);
+
+  if (dbg_info) {
+    errorMessage += " (" + std::string (dbg_info) + ")";
+  }
+
+  try {
+    gint code = err_code;
+    Error error (shared_from_this(), errorMessage, code,
+                 "UNEXPECTED_PIPELINE_ERROR");
+
+    signalError (error);
+  } catch (std::bad_weak_ptr &e) {
+  }
+
+  gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err_code);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (parent), GST_DEBUG_GRAPH_SHOW_ALL,
+                                     dot_name);
+  g_free (dot_name);
+
+  g_error_free (err);
+  g_free (dbg_info);
+
+  return;
 }
 
 void MediaPipelineImpl::postConstructor ()
@@ -87,7 +109,7 @@ void MediaPipelineImpl::postConstructor ()
   gst_bus_add_signal_watch (bus);
   busMessageHandler = register_signal_handler (G_OBJECT (bus), "message",
                       std::function <void (GstBus *, GstMessage *) > (std::bind (
-                            &MediaPipelineImpl::busMessage, this,
+                            &MediaPipelineImpl::processBusMessage, this,
                             std::placeholders::_2) ),
                       std::dynamic_pointer_cast<MediaPipelineImpl>
                       (shared_from_this() ) );
@@ -99,9 +121,9 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
 {
   GstClock *clock;
 
-  pipeline = gst_pipeline_new (NULL);
+  pipeline = gst_pipeline_new (nullptr);
 
-  if (pipeline == NULL) {
+  if (pipeline == nullptr) {
     throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
                             "Cannot create gstreamer pipeline");
   }
@@ -163,9 +185,9 @@ std::string MediaPipelineImpl::getGstreamerDot (
 
 std::string MediaPipelineImpl::getGstreamerDot()
 {
-  return generateDotGraph (GST_BIN (pipeline),
-                           std::shared_ptr <GstreamerDotDetails> (new GstreamerDotDetails (
-                                 GstreamerDotDetails::SHOW_VERBOSE) ) );
+  return generateDotGraph (
+           GST_BIN (pipeline),
+           std::make_shared<GstreamerDotDetails> (GstreamerDotDetails::SHOW_VERBOSE) );
 }
 
 bool

@@ -70,11 +70,11 @@ protected:
 private:
 
   static std::mutex sdpMutex;
-  std::atomic_bool offerInProcess;
-  std::atomic_bool waitingAnswer;
-  std::atomic_bool answerProcessed;
-  std::atomic_bool isrtpendpoint;
-  std::atomic_bool dosocketreuse;
+  std::atomic_bool offerInProcess{};
+  std::atomic_bool waitingAnswer{};
+  std::atomic_bool answerProcessed{};
+  std::atomic_bool isrtpendpoint{};
+  std::atomic_bool dosocketreuse{};
 
   class StaticConstructor
   {

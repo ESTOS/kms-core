@@ -2842,8 +2842,6 @@ GST_START_TEST (sdp_media_from_first_media_inactive)
     if (sdp_utils_media_is_inactive (media)) {
       fail_if (i != 0);
     }
-
-    i++;
   }
 
   gst_sdp_message_free (sdp);
@@ -2856,7 +2854,7 @@ check_if_media_is_removed (GstSDPMessage * msg, guint index)
 {
   const GstSDPMedia *media;
 
-  fail_if (index > gst_sdp_message_medias_len (msg));
+  fail_if (index >= gst_sdp_message_medias_len (msg));
 
   media = gst_sdp_message_get_media (msg, index);
 

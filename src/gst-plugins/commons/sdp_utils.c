@@ -24,11 +24,12 @@
 
 #define GST_CAT_DEFAULT sdp_utils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
-#define GST_DEFAULT_NAME "sdp_utils"
+#define GST_DEFAULT_NAME "sdputils"
 
 static gchar *directions[] =
     { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR, NULL };
 
+#define EXT_MAP "extmap"
 #define RTPMAP "rtpmap"
 #define FMTP "fmtp"
 
@@ -345,11 +346,6 @@ sdp_utils_add_setup_attribute (const GstSDPAttribute * attr,
 
   /* follow rules defined in RFC4145 */
 
-  if (g_strcmp0 (attr->key, "setup") != 0) {
-    GST_WARNING ("%s is not a setup attribute", attr->key);
-    return FALSE;
-  }
-
   if (g_strcmp0 (attr->value, "active") == 0) {
     setup = "passive";
   } else if (g_strcmp0 (attr->value, "passive") == 0) {
@@ -361,6 +357,21 @@ sdp_utils_add_setup_attribute (const GstSDPAttribute * attr,
   }
 
   return gst_sdp_attribute_set (new_attr, attr->key, setup) == GST_SDP_OK;
+}
+
+static gboolean
+sdp_utils_add_comedia_attribute (const GstSDPAttribute * attr,
+    GstSDPAttribute * new_attr)
+{
+  const gchar *comedia;
+
+  if (g_strcmp0 (attr->value, "active") == 0) {
+    comedia = "passive";
+  } else {
+    comedia = "active";
+  }
+
+  return gst_sdp_attribute_set (new_attr, attr->key, comedia) == GST_SDP_OK;
 }
 
 static gboolean
@@ -396,7 +407,14 @@ intersect_attribute (const GstSDPAttribute * attr,
   if (g_strcmp0 (attr->key, "setup") == 0) {
     /* follow rules defined in RFC4145 */
     if (!sdp_utils_add_setup_attribute (attr, &new_attr)) {
-      GST_WARNING ("Can not set attribute a=%s:%s", attr->key, attr->value);
+      GST_WARNING ("Cannot set attribute a=%s:%s", attr->key, attr->value);
+      return FALSE;
+    }
+    a = &new_attr;
+  } else if (g_strcmp0 (attr->key, "direction") == 0) {
+    // COMEDIA-based discovery of remote IP+port
+    if (!sdp_utils_add_comedia_attribute (attr, &new_attr)) {
+      GST_WARNING ("Cannot set attribute a=%s:%s", attr->key, attr->value);
       return FALSE;
     }
     a = &new_attr;
@@ -405,13 +423,13 @@ intersect_attribute (const GstSDPAttribute * attr,
     /* new connection is gonna be required or an existing one */
     /* can be used. By default we always create a new one. */
     if (gst_sdp_attribute_set (&new_attr, "connection", "new") != GST_SDP_OK) {
-      GST_WARNING ("Can not add attribute a=connection:new");
+      GST_WARNING ("Cannot add attribute a=connection:new");
       return FALSE;
     }
     a = &new_attr;
   } else if (sdp_utils_attribute_is_direction (attr, NULL)) {
     if (!sdp_utils_set_direction_answer (attr, &new_attr)) {
-      GST_WARNING ("Can not set direction attribute");
+      GST_WARNING ("Cannot set 'direction' attribute");
       return FALSE;
     }
 
@@ -605,12 +623,13 @@ sdp_utils_media_has_remb (const GstSDPMedia * media)
   for (a = 0;; a++) {
     const gchar *attr;
 
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    attr = gst_sdp_media_get_attribute_val_n (media, SDP_MEDIA_RTCP_FB, a);
     if (attr == NULL) {
       break;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_REMB)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload,
+            SDP_MEDIA_RTCP_FB_GOOG_REMB)) {
       return TRUE;
     }
   }
@@ -631,12 +650,13 @@ sdp_utils_media_has_rtcp_nack (const GstSDPMedia * media)
   for (a = 0;; a++) {
     const gchar *attr;
 
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    attr = gst_sdp_media_get_attribute_val_n (media, SDP_MEDIA_RTCP_FB, a);
     if (attr == NULL) {
       break;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_NACK)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload,
+            SDP_MEDIA_RTCP_FB_NACK)) {
       return TRUE;
     }
   }

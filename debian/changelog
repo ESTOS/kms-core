@@ -1,3 +1,160 @@
+kms-core (6.9.1-1kurento1) UNRELEASED; urgency=medium
+
+  * debian: Review for 18.04 build
+
+ -- Juan Navarro <juan.navarro@gmx.es>  Thu, 07 Feb 2019 18:22:54 +0100
+
+kms-core (6.8.1) testing; urgency=medium
+
+  * Prepare release 6.8.1
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Tue, 23 Oct 2018 16:23:46 +0200
+
+kms-core (6.8.0) testing; urgency=medium
+
+  * debian/rules: Remove 'override_dh_auto_test'
+  * Prepare release 6.8.0
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Wed, 26 Sep 2018 11:30:00 +0200
+
+kms-core (6.7.3) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+  * Prepare release 6.7.2
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Fri, 27 Jul 2018 10:20:30 +0100
+
+kms-core (6.7.2) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+  * Prepare release 6.7.2
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Fri, 11 May 2018 10:20:30 +0100
+
+kms-core (6.7.1) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+  * Prepare release 6.7.0
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Wed, 21 Mar 2018 16:20:32 +0100
+
+kms-core (6.7.0) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+  * Remove version numbers from package names
+  * Align all version numbers of KMS-related modules
+  * Updates to debian/control:
+    - Maintainer: Kurento <kurento@googlegroups.com>
+    - Standards-Version: 4.0.0
+    - Homepage: www.kurento.org (let server redirect to HTTPS if available)
+    - Vcs-Git: https://github.com/Kurento/*.git (use secure URL)
+    - Section: libs|libdevel|devel|debug|video (set appropriate one for
+      each binary package)
+    - Description: Review description text
+  * Updates to debian/copyright:
+    - Refer to '/usr/share/common-licenses/Apache-2.0' rather than
+      quoting the license text.
+  * Updates to debian/docs:
+    - Added file CHANGELOG.md
+  * Prepare release 6.7.0
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Wed, 25 Jan 2018 13:05:00 +0100
+
+kms-core-6.0 (6.6.3) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+
+  * Changed
+    - Prevent frames from building up in the buffer if the CPU falls behind,
+      by @kc7bfi (David Robison).
+  * Prepare release 6.6.3
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Thu, 10 Aug 2017 16:07:16 +0200
+
+kms-core-6.0 (6.6.2) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+
+  * Added
+    - REMB: Add "COMEDIA"/automatic port discovery.
+    - REMB: Enable for RTP connections. Previously, it would only work for
+      WebRTC.
+  * Changed
+    - Old ChangeLog.md moved to the new format in this CHANGELOG.md file.
+    - CMake: Full review of all CMakeLists.txt files to tidy up and homogenize
+      code style and compiler flags.
+    - CMake: Position Independent Code flags ("-fPIC") were scattered around
+      projects, and are now removed. Instead, the more CMake-idiomatic variable
+      "CMAKE_POSITION_INDEPENDENT_CODE" is used.
+    - CMake: All projects now compile with
+      "[-std=c11|-std=c++11] -Wall -Werror -pthread".
+    - CMake: Debug builds now compile with "-g -O0" (while default CMake used
+      "-O1" for Debug builds).
+    - CMake: include() and import() commands were moved to the code areas where
+      they are actually required.
+    - REMB: Limit estimations to the "double of the max bitrate" only in
+      increment phase.
+    - REMB: Make "minVideoRecvBandwidth" always >= 30 kbps.
+  * Fixed
+    - Bugfix: Out of bound access on SDP medias.
+    - Use format macros to fix compiler errors on 32bit systems, by @fancycode
+      (Joachim Bauch).
+    - When a non incremental PTS is discovered in an input stream, the internal
+      DTS gets updated with the new PTS value.
+  * Prepare release 6.6.2
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Fri, 24 Jul 2017 11:00:00 +0200
+
+kms-core-6.0 (6.6.1) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Miguel París Díaz ]
+  * utils: adjust PTS after utility
+  * basertpendpoint: enable PTS adjustment for depayloader output
+  * enctreebin: use a local var for encoder sink pad
+  * filterelement: use a leaky queue before the filter
+  * enctreebin: add queue before encoder
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Do not use KMS_ELEMENT_LOCK for accept_eos property
+
+  [ Miguel París Díaz ]
+  * utils: do not apply hack when PTS increment is greater than 200 msec
+
+  [ Jose Antonio Santos Cadenas ]
+  * CMake: Use relative source and build directories
+  * CMake: Do not make global includes
+  * CodeGenerator: Include dependencies using with a proper name
+  * FindGstCommons: Allow including from the same project
+  * rtpendpoint: Add more directories to get modules
+  * CMake: Rename rtp_endpoint test program
+  * CodeGenerator: Allow profiding multiple KURENTO_MODULES_DIR
+  * sdp_agent: Do not update for index twice
+
+  [ Miguel París Díaz ]
+  * sdpagent: fix leak when group not provied
+
+  [ Jose Antonio Santos Cadenas ]
+  * Include boost libraries correctly
+  * UriEndpointImpl: Use std regex instead of boost if possible
+  * debian/control: Require boost-regex-dev as a dev dependency
+
+  [ Santiago Carot-Nemesio ]
+  * kmsuriendpoint: Notify errors
+  * kmsuriendpoint: Provide method to get the state without using GObject's marshalling for getters/setters
+
+  [ Jose Antonio Santos Cadenas ]
+  * CodeGenerator: Make code generation depend on code generator changes
+  * CodeGenerator: Link configuration files to binary dir
+  * Fix clang compilation problems in trusty
+  * Prepare release 6.6.1
+
+  [ Jose Antonio Santos ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 30 Sep 2016 11:40:03 +0200
+
 kms-core-6.0 (6.6.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

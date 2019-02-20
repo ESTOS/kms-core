@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 include (GenericFind)
 
-generic_find(LIBNAME KurentoModuleCreator VERSION ^4.0.0 REQUIRED)
+generic_find(LIBNAME KurentoModuleCreator VERSION ^6.7.0 REQUIRED)
 
 include (GNUInstallDirs)
 include (KurentoGitHelpers)
@@ -11,16 +11,16 @@ set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client l
 set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
 set (DISABLE_LIBRARIES_GENERATION FALSE CACHE BOOL "Disable C/C++ libraries generation, just useful for generating client code")
 
-set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if codding style of generated code is correct")
+set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if coding style of generated code is correct")
 mark_as_advanced(ENABLE_CODE_GENERATION_FORMAT_CHECK)
 
-set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE PATH "Directory where kurento modules descriptors can be found")
+set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE PATH "Directory where kurento module descriptors can be found")
 mark_as_advanced(KURENTO_MODULES_DIR)
 
-set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
+set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento module descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
-set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "Url of kurento-client-js git repository to get templates from")
+set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "URL of kurento-client-js git repository to get templates from")
 set (KURENTO_CLIENT_JS_BRANCH master CACHE STRING "Branch of kurento-client-js repository to get templates from")
 
 set (CMAKE_MODULES_INSTALL_DIR
@@ -126,7 +126,11 @@ function (generate_sources)
     endif()
   endforeach()
 
-  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
+  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
 
   if (PARAM_NO_OVERWRITE)
     set (COMMAND_LINE ${COMMAND_LINE} -n)
@@ -235,13 +239,23 @@ function (generate_sources)
     endforeach()
   else ()
 
-    add_custom_command(
-      OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
-      COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
-      DEPENDS ${MODEL_FILES}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
+    if (TARGET kurento-module-creator)
+      add_custom_command(
+        OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
+        COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
+        COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+        DEPENDS ${MODEL_FILES} kurento-module-creator ${KurentoModuleCreator_EXECUTABLE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      )
+    else()
+      add_custom_command(
+        OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
+        COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
+        COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+        DEPENDS ${MODEL_FILES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      )
+    endif()
   endif()
 
   set (${PARAM_SOURCE_FILES_OUTPUT} ${${PARAM_SOURCE_FILES_OUTPUT}} ${GENERATED_SOURCE_FILES} PARENT_SCOPE)
@@ -331,7 +345,13 @@ function (generate_kurento_libraries)
 
   set(CUSTOM_PREFIX "kurento")
 
-  set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
+  set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE})
+
+  string(TOUPPER ${VALUE_CODE_IMPLEMENTATION_LIB} VALUE_CODE_IMPLEMENTATION_LIB_UPPER)
 
   ###############################################################
   # Get reduced kmd
@@ -441,13 +461,13 @@ function (generate_kurento_libraries)
   )
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}interface
-    ${DEPENDENCIES_LIBRARIES}
+    ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_LIBRARIES}
     ${PARAM_INTERFACE_LIB_EXTRA_LIBRARIES}
   )
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     PROPERTY INCLUDE_DIRECTORIES
-      ${DEPENDENCIES_INCLUDE_DIRS}
+      ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_INCLUDE_DIRS}
       ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
@@ -557,11 +577,11 @@ function (generate_kurento_libraries)
   )
 
   if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    set (DEPENDENCIES_LIBRARIES libws2_32.a ${DEPENDENCIES_LIBRARIES})
+    set (${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_LIBRARIES libws2_32.a ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_LIBRARIES})
   endif ()
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}impl
-    ${DEPENDENCIES_LIBRARIES}
+    ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_LIBRARIES}
     ${PARAM_SERVER_IMPL_LIB_EXTRA_LIBRARIES}
     ${VALUE_CODE_IMPLEMENTATION_LIB}interface
   )
@@ -595,7 +615,7 @@ function (generate_kurento_libraries)
     PROPERTY INCLUDE_DIRECTORIES
       ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
       ${CMAKE_BINARY_DIR}
-      ${DEPENDENCIES_INCLUDE_DIRS}
+      ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_INCLUDE_DIRS}
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
       ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
@@ -634,7 +654,7 @@ function (generate_kurento_libraries)
   )
 
   file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/generate_kmd_include.cmake
-"  execute_process (COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/)
+"  execute_process (COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_CURRENT_BINARY_DIR}/)
 
   file (READ ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json KMD_DATA)
 
@@ -687,7 +707,7 @@ function (generate_kurento_libraries)
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}module
     PROPERTY INCLUDE_DIRECTORIES
-      ${DEPENDENCIES_INCLUDE_DIRS}
+      ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_INCLUDE_DIRS}
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
@@ -724,8 +744,8 @@ function (generate_kurento_libraries)
   endif ()
 
   set (_INTERFACE_HEADERS_DIR ${GEN_FILES_DIR})
-  string (REPLACE "${CMAKE_BINARY_DIR}/" "build/" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
-  string (REPLACE "${CMAKE_BINARY_DIR}" "build" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
+  string (REPLACE "${CMAKE_BINARY_DIR}/" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}/" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
+  string (REPLACE "${CMAKE_BINARY_DIR}" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
   string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
   string (REPLACE "${CMAKE_SOURCE_DIR}" "" _INTERFACE_HEADERS_DIR ${_INTERFACE_HEADERS_DIR})
 
@@ -738,8 +758,8 @@ function (generate_kurento_libraries)
   endif ()
 
   set (_SERVER_INTERNAL_GENERATED_HEADERS_DIR ${SERVER_INTERNAL_GEN_FILES_DIR})
-  string (REPLACE "${CMAKE_BINARY_DIR}/" "build/" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
-  string (REPLACE "${CMAKE_BINARY_DIR}" "build" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
+  string (REPLACE "${CMAKE_BINARY_DIR}/" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}/" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
+  string (REPLACE "${CMAKE_BINARY_DIR}" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
   string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
   string (REPLACE "${CMAKE_SOURCE_DIR}" "" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${_SERVER_INTERNAL_GENERATED_HEADERS_DIR})
 
@@ -752,8 +772,8 @@ function (generate_kurento_libraries)
   endif ()
 
   set (_PARAM_SERVER_STUB_DESTINATION ${PARAM_SERVER_STUB_DESTINATION})
-  string (REPLACE "${CMAKE_BINARY_DIR}/" "build/" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
-  string (REPLACE "${CMAKE_BINARY_DIR}" "build" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
+  string (REPLACE "${CMAKE_BINARY_DIR}/" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}/" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
+  string (REPLACE "${CMAKE_BINARY_DIR}" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
   string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
   string (REPLACE "${CMAKE_SOURCE_DIR}" "" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
 
@@ -768,8 +788,8 @@ function (generate_kurento_libraries)
   foreach (HEADER ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS})
     string (REGEX REPLACE "/.*$" "" HEADER ${HEADER})
     set (HEADER "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}")
-    string (REPLACE "${CMAKE_BINARY_DIR}/" "build/" HEADER ${HEADER})
-    string (REPLACE "${CMAKE_BINARY_DIR}" "build" HEADER ${HEADER})
+    string (REPLACE "${CMAKE_BINARY_DIR}/" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}/" HEADER ${HEADER})
+    string (REPLACE "${CMAKE_BINARY_DIR}" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}" HEADER ${HEADER})
     string (REPLACE "${CMAKE_SOURCE_DIR}/" "" HEADER ${HEADER})
     string (REPLACE "${CMAKE_SOURCE_DIR}" "" HEADER ${HEADER})
     unset (CONTAINS)
@@ -800,8 +820,8 @@ function (generate_kurento_libraries)
   foreach (HEADER ${PARAM_INTERFACE_LIB_EXTRA_HEADERS})
     string (REGEX REPLACE "/.*$" "" HEADER ${HEADER})
     set (HEADER "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}")
-    string (REPLACE "${CMAKE_BINARY_DIR}/" "build/" HEADER ${HEADER})
-    string (REPLACE "${CMAKE_BINARY_DIR}" "build" HEADER ${HEADER})
+    string (REPLACE "${CMAKE_BINARY_DIR}/" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}/" HEADER ${HEADER})
+    string (REPLACE "${CMAKE_BINARY_DIR}" "\${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_BINARY_DIR_PREFIX}" HEADER ${HEADER})
     string (REPLACE "${CMAKE_SOURCE_DIR}/" "" HEADER ${HEADER})
     string (REPLACE "${CMAKE_SOURCE_DIR}" "" HEADER ${HEADER})
     unset (CONTAINS)
@@ -858,7 +878,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   execute_code_generator (
-    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
+    EXEC_PARAMS -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
   )
 
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
@@ -894,6 +914,12 @@ function (generate_kurento_libraries)
       ${CONFIG_FILES}
       DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kurento/modules/${CONFIG_FILES_DIR}
     )
+
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/config/${CONFIG_FILES_DIR})
+    foreach (CONFIG_FILE ${CONFIG_FILES})
+      execute_process (
+          COMMAND ln -fs ${CONFIG_FILE} ${CMAKE_BINARY_DIR}/config/${CONFIG_FILES_DIR})
+    endforeach()
   else()
     message (STATUS "No config files found")
   endif()
@@ -907,7 +933,7 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -maven
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/java -maven
     )
 
     find_program(xmllint_EXECUTABLE NAMES xmllint)
@@ -923,12 +949,12 @@ function (generate_kurento_libraries)
 
       file(WRITE ${CMAKE_BINARY_DIR}/java/pom.xml ${POM_CONTENT})
     else()
-      message(STATUS "Pom willn ot be indented unless you intall xmllint")
+      message(STATUS "'pom.xml' won't be indented unless you intall `xmllint` (libxml2-utils)")
     endif()
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
     )
 
     if (${Maven_FOUND})
@@ -974,17 +1000,17 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/js -npm
     )
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -t ${KURENTO_CLIENT_JS_DIR}/templates
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/js/lib -t ${KURENTO_CLIENT_JS_DIR}/templates
     )
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/js/src
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_BINARY_DIR}/js/src
     )
 
     if (EXISTS ${CMAKE_SOURCE_DIR}/LICENSE)
@@ -1037,8 +1063,12 @@ function (get_values_from_model)
     endif()
   endforeach()
 
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
   execute_code_generator (
-    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
+    EXEC_PARAMS -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -s ${PARAM_KEYS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 

@@ -749,7 +749,8 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
 
   if (index >= gst_sdp_message_medias_len (desc)) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->sdph->media);
+        "Cannot process media: Invalid media index %u (%s)",
+        index, sdp_handler->sdph->media);
   } else {
     gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
   }
@@ -864,7 +865,8 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
   if (index >= gst_sdp_message_medias_len (agent->priv->local_description)) {
     g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->sdph->media);
+        "Cannot create offer: Invalid media index %u (%s)",
+        index, sdp_handler->sdph->media);
     return NULL;
   }
 
@@ -1356,8 +1358,9 @@ kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
 
   if (!kms_sdp_media_handler_manage_protocol (handler,
           gst_sdp_media_get_proto (media))) {
-    GST_WARNING_OBJECT (agent, "Handler can not manage media: %s",
-        gst_sdp_media_get_media (media));
+    GST_WARNING_OBJECT (agent, "Unmanaged protocol: %s %s, handler: %s",
+        gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media),
+        G_OBJECT_TYPE_NAME (handler));
     g_object_unref (handler);
     return NULL;
   }
@@ -1417,7 +1420,7 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
 
   if (mids == NULL) {
     GST_DEBUG_OBJECT (agent, "Group not provided");
-    return;
+    goto end;
   }
 
   g_object_get (group, "semantics", &semantics, "id", &gid, NULL);
@@ -1643,6 +1646,15 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
       data->answer, media, err);
 
   if (answer_media == NULL) {
+    gchar *err_message = NULL;
+
+    if (*err != NULL) {
+      err_message = (*err)->message;
+    }
+    GST_WARNING_OBJECT (agent, "Error creating answer for media '%s %u %s': %s",
+        gst_sdp_media_get_media (media), gst_sdp_media_get_port (media),
+        gst_sdp_media_get_proto (media), err_message ? err_message : "");
+
     ret = FALSE;
     goto end;
   }

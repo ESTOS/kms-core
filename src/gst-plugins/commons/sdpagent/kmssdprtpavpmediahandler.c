@@ -486,8 +486,8 @@ kms_sdp_rtp_avp_media_handler_encoding_supported (KmsSdpRtpAvpMediaHandler *
       /* Check dynamic pt */
       supported = g_ascii_strcasecmp (rtpmap->name, enc) == 0;
       if (supported) {
-        kms_i_sdp_payload_manager_register_dynamic_payload (self->priv->
-            ptmanager, pt, rtpmap->name, NULL);
+        kms_i_sdp_payload_manager_register_dynamic_payload (self->
+            priv->ptmanager, pt, rtpmap->name, NULL);
       }
     }
 
@@ -700,9 +700,9 @@ instersect_rtp_avp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
-          handler)->can_insert_attribute (data->handler, data->offer, attr,
-          data->answer, data->msg)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, data->answer,
+          data->msg)) {
     return FALSE;
   }
 
@@ -778,6 +778,16 @@ kms_sdp_rtp_avp_media_handler_init_new_offer (KmsSdpMediaHandler * handler,
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "Can not set port");
     ret = FALSE;
+    goto end;
+  }
+  // RFC 5763 says:
+  // > The endpoint that is the offerer MUST use the setup attribute
+  // > value of setup:actpass
+  if (gst_sdp_media_add_attribute (offer, "setup", "actpass") != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not set attribute 'setup:actpass'");
+    ret = FALSE;
+    goto end;
   }
 
 end:
@@ -1233,6 +1243,9 @@ kms_sdp_rtp_avp_media_handler_add_codec (KmsSdpRtpAvpMediaHandler * self,
         "Codec %s is already used", name);
     return -1;
   }
+
+  GST_INFO_OBJECT (self, "Add format support, media: %s, codec: %s",
+      media, name);
 
   rtpmap = kms_sdp_rtp_map_create_for_codec (self, name, error);
 

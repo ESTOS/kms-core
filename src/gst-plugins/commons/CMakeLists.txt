@@ -1,14 +1,3 @@
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-base-1.5_SOURCE_DIRS}
-  ${gstreamer-sdp-1.5_SOURCE_DIRS}
-  ${gstreamer-pbutils-1.5_SOURCE_DIRS}
-  ${gstreamer-video-1.5_INCLUDE_DIRS}
-  ${uuid_INCLUDE_DIRS}
-)
-
 set(KMS_SDP_UTILS_SOURCES
   sdp_utils.c
 )
@@ -19,6 +8,14 @@ set(KMS_SDP_UTILS_HEADERS
 
 add_library(sdputils STATIC ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
 
+set_property(TARGET sdputils
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+)
+
 target_link_libraries(sdputils
   ${gstreamer-1.5_LIBRARIES}
   ${gstreamer-base-1.5_LIBRARIES}
@@ -26,9 +23,11 @@ target_link_libraries(sdputils
   ${gstreamer-pbutils-1.5_LIBRARIES}
 )
 
-set_target_properties(sdputils PROPERTIES PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}")
-
-set_target_properties(sdputils PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+set_target_properties(sdputils PROPERTIES
+  PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}"
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 
 set(CUSTOM_PREFIX "kurento")
 set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/commons")
@@ -41,6 +40,11 @@ install(
 )
 
 add_library(kmsrefstruct STATIC kmsrefstruct.c kmsrefstruct.h)
+
+set_property(TARGET kmsrefstruct
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+)
 
 target_link_libraries(kmsrefstruct
   ${gstreamer-1.5_LIBRARIES}
@@ -59,6 +63,16 @@ set(KMS_UTILS
 )
 
 add_library(kmsutils STATIC ${KMS_UTILS})
+
+set_property(TARGET kmsutils
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-video-1.5_INCLUDE_DIRS}
+    ${uuid_INCLUDE_DIRS}
+)
 
 set_target_properties(kmsutils PROPERTIES PUBLIC_HEADER kmsutils.h)
 
@@ -102,6 +116,7 @@ set(KMS_COMMONS_SOURCES
   kmsparsetreebin.c
   kmsrtppaytreebin.c
   kmslist.c
+  kmsrtpsynchronizer.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -132,6 +147,7 @@ set(KMS_COMMONS_HEADERS
   kmsparsetreebin.h
   kmsrtppaytreebin.h
   kmslist.h
+  kmsrtpsynchronizer.h
 )
 
 set(ENUM_HEADERS
@@ -152,14 +168,23 @@ add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
 
-add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
+set_property(TARGET kmsgstcommons
+  PROPERTY INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/../../..
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-rtp-1.5_INCLUDE_DIRS}
+)
 
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
   kmsrefstruct
   kmssdpagent
-  kmsrtpsync
   ${gstreamer-1.5_LIBRARIES}
   ${gstreamer-base-1.5_LIBRARIES}
   ${gstreamer-sdp-1.5_LIBRARIES}
@@ -192,11 +217,11 @@ install(FILES
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
 
-foreach (HEADER ${KMS_COMMONS_HEADERS})
-  list (APPEND FIND_HEADERS commons/${HEADER})
-endforeach ()
+foreach(HEADER ${KMS_COMMONS_HEADERS})
+  list(APPEND FIND_HEADERS commons/${HEADER})
+endforeach()
 
-set (REQUIRED_LIBS
+set(REQUIRED_LIBS
   "gstreamer-1.5 ${GST_REQUIRED}"
   "gstreamer-base-1.5 ${GST_REQUIRED}"
   "gstreamer-sdp-1.5 ${GST_REQUIRED}"
@@ -211,5 +236,3 @@ install(FILES
 )
 
 add_subdirectory(sdpagent)
-
-add_subdirectory(rtpsync)

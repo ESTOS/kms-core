@@ -20,7 +20,7 @@
 #endif
 
 #include "kmsparsetreebin.h"
-#include <kmsutils.h>
+#include "kmsutils.h"
 
 #define GST_DEFAULT_NAME "parsetreebin"
 #define GST_CAT_DEFAULT kms_parse_tree_bin_debug
@@ -72,7 +72,7 @@ create_parser_for_caps (const GstCaps * caps)
   if (parser_factory != NULL) {
     parser = gst_element_factory_create (parser_factory, NULL);
   } else {
-    parser = gst_element_factory_make ("capsfilter", NULL);
+    parser = kms_utils_element_factory_make ("capsfilter", "parsetreebin_");
   }
 
   gst_plugin_feature_list_free (filtered_list);
@@ -88,12 +88,11 @@ difference_over_threshold (guint a, guint b, float th)
 }
 
 static GstPadProbeReturn
-bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info,
+    KmsParseTreeBin * self)
 {
-  KmsParseTreeBin *self = data;
-
-  if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
     GstClockTime timediff = GST_CLOCK_TIME_NONE;
     guint bitrate;
 
@@ -146,7 +145,7 @@ bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 
     self->priv->last_buffer_pts = buffer->pts;
     self->priv->last_buffer_dts = buffer->dts;
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
     GST_WARNING_OBJECT (self,
         "Bufferlist is not supported yet for bitrate calculation");
   }
@@ -167,12 +166,12 @@ kms_parse_tree_bin_configure (KmsParseTreeBin * self, const GstCaps * caps)
 
   kms_tree_bin_set_input_element (tree_bin, self->priv->parser);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  if (!kms_utils_caps_are_raw (caps) && kms_utils_caps_are_video (caps)) {
+  if (!kms_utils_caps_is_raw (caps) && kms_utils_caps_is_video (caps)) {
     GstPad *sink = gst_element_get_static_pad (output_tee, "sink");
 
     gst_pad_add_probe (sink,
         GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        bitrate_calculation_probe, self, NULL);
+        (GstPadProbeCallback) bitrate_calculation_probe, self, NULL);
 
     g_object_unref (sink);
   }
