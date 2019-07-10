@@ -133,7 +133,8 @@ void BaseRtpEndpointImpl::postConstructor ()
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     &config,
     std::shared_ptr< MediaObjectImpl > parent,
-    const std::string &factoryName, bool useIpv6) :
+    const std::string &factoryName, guint16 min_port, guint16 max_port,
+    bool useIpv6) :
   SdpEndpointImpl (config, parent, factoryName, useIpv6)
 {
   current_media_state = std::make_shared <MediaState>
@@ -149,20 +150,39 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
   mypipeline = 0;
 
 
-  try {
-    guint minPort = getConfigValue<guint, BaseRtpEndpoint> (PARAM_MIN_PORT);
+  //RTCSP-865 Portrange
+  guint minPort;
 
-    g_object_set (getGstreamerElement (), PROP_MIN_PORT, minPort, NULL);
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* Expected when configuration is not set */
+  if (min_port == 0) {
+    try {
+      minPort = getConfigValue<guint, BaseRtpEndpoint> (PARAM_MIN_PORT);
+      g_object_set (getGstreamerElement(), PROP_MIN_PORT, minPort, NULL);
+      GST_DEBUG ("config min_port:%d", minPort);
+    } catch (boost::property_tree::ptree_bad_path &e) {
+      /* Expected when configuration is not set */
+      GST_DEBUG ("default min_port:%d", 1024);
+    }
+  } else {
+    minPort = min_port;
+    g_object_set (getGstreamerElement(), PROP_MIN_PORT, minPort, NULL);
+    GST_DEBUG ("create min_port:%d", minPort);
   }
 
-  try {
-    guint maxPort = getConfigValue <guint, BaseRtpEndpoint> (PARAM_MAX_PORT);
+  guint maxPort;
 
-    g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* Expected when configuration is not set */
+  if (max_port == 0) {
+    try {
+      maxPort = getConfigValue <guint, BaseRtpEndpoint> (PARAM_MAX_PORT);
+      g_object_set (getGstreamerElement(), PROP_MAX_PORT, maxPort, NULL);
+      GST_DEBUG ("config max_port:%d", maxPort);
+    } catch (boost::property_tree::ptree_bad_path &e) {
+      /* Expected when configuration is not set */
+      GST_DEBUG ("default max_port:%d", 0xffff);
+    }
+  } else {
+    maxPort = max_port;
+    g_object_set (getGstreamerElement(), PROP_MAX_PORT, maxPort, NULL);
+    GST_DEBUG ("create max_port:%d", maxPort);
   }
 }
 

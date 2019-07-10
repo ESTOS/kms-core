@@ -45,7 +45,9 @@ public:
 
   BaseRtpEndpointImpl (const boost::property_tree::ptree &config,
                        std::shared_ptr< MediaObjectImpl > parent,
-                       const std::string &factoryName, bool useIpv6 = false);
+                       const std::string &factoryName,
+                       guint16 min_port = 0, guint16 max_port = 0,
+                       bool useIpv6 = false);
 
   virtual ~BaseRtpEndpointImpl ();
 

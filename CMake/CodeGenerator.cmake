@@ -8,7 +8,7 @@ include (GNUInstallDirs)
 include (KurentoGitHelpers)
 
 set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client library")
-set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
+set (GENERATE_JS_CLIENT_PROJECT TRUE CACHE BOOL "Generate js npm client library")
 set (DISABLE_LIBRARIES_GENERATION FALSE CACHE BOOL "Disable C/C++ libraries generation, just useful for generating client code")
 
 set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if coding style of generated code is correct")
@@ -20,7 +20,7 @@ mark_as_advanced(KURENTO_MODULES_DIR)
 set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento module descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
-set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "URL of kurento-client-js git repository to get templates from")
+set (KURENTO_CLIENT_JS_GIT https://github.com/estos/kurento-client-js CACHE STRING "URL of kurento-client-js git repository to get templates from")
 set (KURENTO_CLIENT_JS_BRANCH master CACHE STRING "Branch of kurento-client-js repository to get templates from")
 
 set (CMAKE_MODULES_INSTALL_DIR
