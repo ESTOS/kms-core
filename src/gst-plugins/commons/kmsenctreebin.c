@@ -134,6 +134,16 @@ set_encoder_configuration (GstElement * encoder, GstStructure * codec_config,
   }
 }
 
+#define RTCSP1078
+#ifdef RTCSP1078
+typedef enum
+{
+  BITRATE_TYPE_CBR,
+  BITRATE_TYPE_VBR,
+  BITRATE_TYPE_CONSTRAINED_VBR,
+} GstOpusEncBitrateType;
+#endif
+
 static void
 configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate,
     GstStructure * codec_configs)
@@ -179,8 +189,18 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate,
     }
     case OPUS:
     {
+#ifndef RTCSP1078
       g_object_set (G_OBJECT (encoder), "inband-fec", TRUE,
           "perfect-timestamp", TRUE, NULL);
+#else
+//RTCSP-1078 fix opus problems
+#define OPUS_APPLICATION_VOIP                2048
+#define OPUS_APPLICATION_AUDIO               2049
+      g_object_set (G_OBJECT (encoder), "inband-fec", TRUE,
+          "perfect-timestamp", FALSE, "bitrate-type", BITRATE_TYPE_VBR, NULL);
+      g_object_set (G_OBJECT (encoder), "audio-type", OPUS_APPLICATION_VOIP,
+          NULL);
+#endif
       break;
     }
     default:

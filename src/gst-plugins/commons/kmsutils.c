@@ -1455,10 +1455,18 @@ set_func:
 
 // ------------------------ Adjust PTS ------------------------
 
+//#define TRYGAPFIX
+
 typedef struct _AdjustPtsData
 {
   GstElement *element;
+#ifdef TRYGAPFIX
+  GstClockTime last_dts;
+#endif
   GstClockTime last_pts;
+#ifdef TRYGAPFIX
+  GstClockTime last_pts_inc;
+#endif
 } AdjustPtsData;
 
 static void
@@ -1474,7 +1482,13 @@ kms_utils_adjust_pts_data_new (GstElement * element)
 
   data = g_slice_new0 (AdjustPtsData);
   data->element = element;
+#ifdef TRYGAPFIX
+  data->last_dts = GST_CLOCK_TIME_NONE;
+#endif
   data->last_pts = GST_CLOCK_TIME_NONE;
+#ifdef TRYGAPFIX
+  data->last_pts_inc = GST_CLOCK_TIME_NONE;
+#endif
 
   return data;
 }
@@ -1482,6 +1496,10 @@ kms_utils_adjust_pts_data_new (GstElement * element)
 static void
 kms_utils_depayloader_adjust_pts_out (AdjustPtsData * data, GstBuffer * buffer)
 {
+//RTCSP-1078 fix opus problems -> dont do any adjustment
+  return;
+
+#ifndef TRYGAPFIX
   const GstClockTime pts_current = GST_BUFFER_PTS (buffer);
   GstClockTime pts_fixed = pts_current;
 
@@ -1506,6 +1524,54 @@ kms_utils_depayloader_adjust_pts_out (AdjustPtsData * data, GstBuffer * buffer)
 
   GST_BUFFER_DTS (buffer) = pts_fixed;
   data->last_pts = pts_fixed;
+#else
+  GstClockTime pts_orig;
+
+  if (!GST_CLOCK_TIME_IS_VALID (data->last_pts)) {
+    goto end;
+  }
+
+  if (GST_BUFFER_PTS (buffer) > data->last_pts) {
+    GstClockTime pts_diff = GST_BUFFER_PTS (buffer) - data->last_pts;
+    GstClockTime dts_diff = GST_BUFFER_DTS (buffer) - data->last_dts;
+
+    if (pts_diff > 200 * GST_MSECOND) {
+      GST_LOG_OBJECT (data->element,
+          "pts_diff: %" GST_TIME_FORMAT ", dts_diff: %" GST_TIME_FORMAT
+          ", discont: %d", GST_TIME_ARGS (pts_diff), GST_TIME_ARGS (dts_diff),
+          GST_BUFFER_IS_DISCONT (buffer));
+      if (pts_diff > dts_diff && GST_CLOCK_TIME_IS_VALID (data->last_pts_inc)) {
+        GstClockTime pts_orig;
+
+        pts_orig = GST_BUFFER_PTS (buffer);
+        GST_BUFFER_PTS (buffer) = data->last_pts + data->last_pts_inc;
+        GST_LOG_OBJECT (data->element,
+            "Huge increment PTS (last PTS: %"
+            GST_TIME_FORMAT ", PTS: %" GST_TIME_FORMAT ", new PTS: %"
+            GST_TIME_FORMAT ")", GST_TIME_ARGS (data->last_pts),
+            GST_TIME_ARGS (pts_orig), GST_TIME_ARGS (GST_BUFFER_PTS (buffer)));
+      }
+    }
+
+    goto end;
+  }
+
+  pts_orig = GST_BUFFER_PTS (buffer);
+  GST_BUFFER_PTS (buffer) = data->last_pts + GST_MSECOND;
+
+  GST_WARNING_OBJECT (data->element,
+      "Non incremental PTS (last PTS: %"
+      GST_TIME_FORMAT ", PTS: %" GST_TIME_FORMAT ", new PTS: %" GST_TIME_FORMAT
+      ")", GST_TIME_ARGS (data->last_pts), GST_TIME_ARGS (pts_orig),
+      GST_TIME_ARGS (GST_BUFFER_PTS (buffer)));
+
+end:
+  if (GST_CLOCK_TIME_IS_VALID (data->last_pts)) {
+    data->last_pts_inc = GST_BUFFER_PTS (buffer) - data->last_pts;
+  }
+  data->last_pts = GST_BUFFER_PTS (buffer);
+  data->last_dts = GST_BUFFER_DTS (buffer);
+#endif
 }
 
 static gboolean

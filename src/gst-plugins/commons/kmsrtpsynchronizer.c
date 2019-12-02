@@ -443,6 +443,12 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
   rtp_ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
   gst_rtp_buffer_ext_timestamp (&self->priv->rtp_ext_ts, rtp_ts);
 
+//RTCSP-1078 fix opus problems -> dont do any adjustment
+#define RTCSP1078
+#ifdef RTCSP1078
+  goto end;
+#endif
+
   if (self->priv->feeded_sorted) {
     if (self->priv->fs_last_rtp_ext_ts != (guint64) - 1
         && self->priv->rtp_ext_ts < self->priv->fs_last_rtp_ext_ts) {
