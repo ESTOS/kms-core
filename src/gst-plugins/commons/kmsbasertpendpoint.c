@@ -2248,10 +2248,10 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
   //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
   //RTCSP-1078 switch back to synched mode
-  g_object_set (jitterbuffer, "mode", 4 /* synced */ ,
-      //g_object_set(jitterbuffer, "mode", 1 /* slave */,
-      //g_object_set(jitterbuffer, "mode", 2 /* buffer */,
-      //g_object_set (jitterbuffer, "mode", 0 /* none */ ,
+  //g_object_set (jitterbuffer, "mode", 4 /* synced */ ,
+  //g_object_set(jitterbuffer, "mode", 1 /* slave */,
+  //g_object_set(jitterbuffer, "mode", 2 /* buffer */,
+  g_object_set (jitterbuffer, "mode", 0 /* none */ ,
       "latency", JB_INITIAL_LATENCY, NULL);
 
   switch (session) {
