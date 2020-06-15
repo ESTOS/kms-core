@@ -82,6 +82,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define DEFAULT_MIN_PORT 1024
 #define DEFAULT_MAX_PORT G_MAXUINT16
 
+#define DEFAULT_JITTERBUF_MODE RTP_JITTER_BUFFER_MODE_NONE
+
 #define PICTURE_ID_15_BIT 2
 
 #define index_of(str,chr) ({  \
@@ -292,6 +294,7 @@ struct _KmsBaseRtpEndpointPrivate
   gint32 clock_rate_act_video;
 
   gboolean perform_video_sync;
+  guint jitterbuffermode;
 };
 
 /* Signals and args */
@@ -333,6 +336,7 @@ enum
   PROP_MAX_PORT,
   PROP_SUPPORT_FEC,
   PROP_OFFER_DIR,
+  PROP_JITTERBUF_MODE,
   PROP_LAST
 };
 
@@ -2246,12 +2250,10 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     g_assert_not_reached ();
   }
 
-  //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
   //RTCSP-1078 switch back to synched mode
-  //g_object_set (jitterbuffer, "mode", 4 /* synced */ ,
-  //g_object_set(jitterbuffer, "mode", 1 /* slave */,
-  //g_object_set(jitterbuffer, "mode", 2 /* buffer */,
-  g_object_set (jitterbuffer, "mode", 0 /* none */ ,
+  //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
+  //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
+  g_object_set (jitterbuffer, "mode", self->priv->jitterbuffermode,
       "latency", JB_INITIAL_LATENCY, NULL);
 
   switch (session) {
@@ -2688,6 +2690,16 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_OFFER_DIR:
       self->priv->offer_dir = g_value_get_enum (value);
       break;
+
+    case PROP_JITTERBUF_MODE:{
+      guint v = g_value_get_uint (value);
+
+      if (v >= RTP_JITTER_BUFFER_MODE_LAST)
+        v = RTP_JITTER_BUFFER_MODE_NONE;
+      self->priv->jitterbuffermode = v;
+      break;
+    }
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -2753,6 +2765,9 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_SUPPORT_FEC:
       g_value_set_boolean (value, self->priv->support_fec);
+      break;
+    case PROP_JITTERBUF_MODE:
+      g_value_set_uint (value, self->priv->jitterbuffermode);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -3210,6 +3225,13 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_boolean ("support-fec", "Forward error correction supported",
           "Forward error correction supported", FALSE,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_JITTERBUF_MODE,
+      g_param_spec_uint ("jitterbuffermode",
+          "set param jitterbuffermode",
+          "set param jitterbuffermode",
+          0, G_MAXUINT16, DEFAULT_JITTERBUF_MODE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
   obj_signals[GET_CONNECTION_STATE] =
@@ -3681,6 +3703,11 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->max_port = DEFAULT_MAX_PORT;
 
   self->priv->offer_dir = DEFAULT_OFFER_DIR;
+
+  //RTCSP-1078 switch back to synched mode
+  //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
+  //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
+  self->priv->jitterbuffermode = RTP_JITTER_BUFFER_MODE_NONE;
 }
 
 GObject *

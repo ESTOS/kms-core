@@ -23,6 +23,14 @@
 #include "kmsmediastate.h"
 #include "kmsconnectionstate.h"
 
+typedef enum {
+  RTP_JITTER_BUFFER_MODE_NONE    = 0,
+  RTP_JITTER_BUFFER_MODE_SLAVE   = 1,
+  RTP_JITTER_BUFFER_MODE_BUFFER  = 2,
+  RTP_JITTER_BUFFER_MODE_SYNCED  = 4,
+  RTP_JITTER_BUFFER_MODE_LAST
+} RTPJitterBufferMode;
+
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_BASE_RTP_ENDPOINT \

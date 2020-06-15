@@ -219,6 +219,15 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   g_object_set (element, "reuse-socket", bdosocketreuse, NULL);
   g_object_set (element, "use-rtpep-avpf", rtpepavpfuse, NULL);
 
+  //RTCSP-1078 switch back to synched mode
+  //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
+  //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
+  if (isrtpendpoint == TRUE) {
+    g_object_set (element, "jitterbuffermode", 0, NULL);  //none
+  } else {
+    g_object_set (element, "jitterbuffermode", 4, NULL);  //synced
+  }
+
   offerInProcess = false;
   waitingAnswer = false;
   answerProcessed = false;
