@@ -431,7 +431,8 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement *mediator = kms_utils_create_mediator_element (caps);
 
     if (kms_utils_caps_is_video (caps)) {
-      g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
+      g_object_set (queue, "leaky", 2, "max-size-time", (guint64) LEAKY_TIME,
+          NULL);
     }
 
     remove_element_on_unlinked (convert, "src", "sink");
@@ -927,8 +928,8 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   if (self->priv->input_bin != NULL) {
-    kms_tree_bin_unlink_input_element_from_tee (KMS_TREE_BIN (self->priv->
-            input_bin));
+    kms_tree_bin_unlink_input_element_from_tee (KMS_TREE_BIN (self->
+            priv->input_bin));
   }
 
   parse_bin = kms_parse_tree_bin_new (caps);
