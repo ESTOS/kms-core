@@ -1496,7 +1496,13 @@ kms_utils_adjust_pts_data_new (GstElement * element)
 static void
 kms_utils_depayloader_adjust_pts_out (AdjustPtsData * data, GstBuffer * buffer)
 {
-//RTCSP-1078 fix opus problems -> dont do any adjustment
+  GST_TRACE_OBJECT (data->element, "Adjust output DTS"
+      ", current DTS: %" GST_TIME_FORMAT
+      ", current PTS: %" GST_TIME_FORMAT,
+      GST_TIME_ARGS (GST_BUFFER_DTS (buffer)),
+      GST_TIME_ARGS (GST_BUFFER_PTS (buffer)));
+
+  //RTCSP-1078 fix opus problems -> dont do any adjustment
   return;
 
 #ifndef TRYGAPFIX
@@ -1516,11 +1522,6 @@ kms_utils_depayloader_adjust_pts_out (AdjustPtsData * data, GstBuffer * buffer)
 
     GST_BUFFER_PTS (buffer) = pts_fixed;
   }
-
-  GST_TRACE_OBJECT (data->element, "Adjust output DTS"
-      ", current DTS: %" GST_TIME_FORMAT
-      ", new DTS = PTS: %" GST_TIME_FORMAT,
-      GST_TIME_ARGS (GST_BUFFER_DTS (buffer)), GST_TIME_ARGS (pts_fixed));
 
   GST_BUFFER_DTS (buffer) = pts_fixed;
   data->last_pts = pts_fixed;

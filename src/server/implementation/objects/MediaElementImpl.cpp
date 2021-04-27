@@ -953,6 +953,14 @@ MediaElementImpl::performConnection (std::shared_ptr
   if (sink) {
     GstPadLinkReturn ret;
 
+    //RTCSP-1871 flush sink and src chain
+    {
+      gst_pad_send_event (sink, gst_event_new_flush_start () );
+      gst_pad_send_event (sink, gst_event_new_flush_stop (TRUE) );
+      gst_pad_send_event (src, gst_event_new_flush_start () );
+      gst_pad_send_event (src, gst_event_new_flush_stop (TRUE) );
+    }
+
     GST_LOG ("Linking %s:%s -> %s:%s", getName().c_str(),
              data->getSourcePadName (), data->getSink()->getName().c_str(),
              data->getSinkPadName ().c_str() );
