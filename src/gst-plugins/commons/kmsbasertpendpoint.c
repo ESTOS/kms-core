@@ -74,8 +74,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 )
 
 #define JB_INITIAL_LATENCY 0
-//#define JB_READY_AUDIO_LATENCY 100
-#define JB_READY_AUDIO_LATENCY 20
+#define JB_READY_AUDIO_LATENCY 100
 #define JB_READY_VIDEO_LATENCY 500
 #define RTCP_FB_CCM_FIR   SDP_MEDIA_RTCP_FB_CCM " " SDP_MEDIA_RTCP_FB_FIR
 #define RTCP_FB_NACK_PLI  SDP_MEDIA_RTCP_FB_NACK " " SDP_MEDIA_RTCP_FB_PLI
@@ -1286,6 +1285,8 @@ kms_base_rtp_endpoint_get_payloader_for_caps (GstCaps * caps)
     g_object_set (payloader, "picture-id-mode", PICTURE_ID_15_BIT, NULL);
   }
 
+  g_object_set (payloader, "perfect-rtptime", (gboolean) FALSE, NULL);
+
 end:
   gst_plugin_feature_list_free (filtered_list);
   gst_plugin_feature_list_free (payloader_list);
@@ -2278,7 +2279,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
   g_object_set (jitterbuffer, "mode", self->priv->jitterbuffermode,
       "latency", JB_INITIAL_LATENCY, NULL);
-  g_object_set (jitterbuffer, "drop-on-latency", (gboolean) TRUE, NULL);
+  //g_object_set (jitterbuffer, "drop-on-latency", (gboolean) TRUE, NULL);
 
   switch (session) {
     case AUDIO_RTP_SESSION:{

@@ -225,6 +225,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //RTCSP-1701 delayed audio switching -> set both buffers to synced mode after the jitterbuffer mode created in rtpbin is set correctly
   if (isrtpendpoint == TRUE) {
     //g_object_set (element, "jitterbuffermode", 0, NULL);  //none
+    //g_object_set (element, "jitterbuffermode", 1, NULL);  //slave
     g_object_set (element, "jitterbuffermode", 4, NULL);  //synced
   } else {
     g_object_set (element, "jitterbuffermode", 4, NULL);  //synced
