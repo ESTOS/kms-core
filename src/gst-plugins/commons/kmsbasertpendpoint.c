@@ -2283,9 +2283,35 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
   switch (session) {
     case AUDIO_RTP_SESSION:{
-      kms_base_rtp_endpoint_jitterbuffer_set_latency (jitterbuffer,
-          JB_READY_AUDIO_LATENCY);
+      {
+        gint latency = JB_READY_AUDIO_LATENCY;
 
+        {                       //RTCSP-1871 try to adjust the latency to avoid resonance
+          const gchar *gflags_string = g_getenv ("ESTOS_DEBUG");
+          gchar *pstrlatency;
+          gchar *next;
+          gchar latencyvalue[4];
+
+          if (gflags_string) {
+            pstrlatency = strstr (gflags_string, "latency");
+            if (pstrlatency) {
+              next = strstr (pstrlatency, ",");
+              if (next) {
+                int length = next - pstrlatency;
+                int lstring = sizeof ("latency") - 1;
+
+                length -= lstring;
+                if (length > 0 && length <= 3) {
+                  strncpy (latencyvalue, (pstrlatency + lstring), length);
+                  latencyvalue[length] = 0;
+                  latency = atoi (latencyvalue);
+                }
+              }
+            }
+          }
+        }
+        kms_base_rtp_endpoint_jitterbuffer_set_latency (jitterbuffer, latency);
+      }
       kms_base_rtp_endpoint_jitterbuffer_monitor_rtp_out (jitterbuffer, sync);
 
       g_signal_connect (jitterbuffer, "pad-added",
