@@ -2295,17 +2295,21 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
           if (gflags_string) {
             pstrlatency = strstr (gflags_string, "latency");
             if (pstrlatency) {
+              int length = 0;
+              int lstring = sizeof ("latency") - 1;
+
               next = strstr (pstrlatency, ",");
               if (next) {
-                int length = next - pstrlatency;
-                int lstring = sizeof ("latency") - 1;
-
+                length = next - pstrlatency;
                 length -= lstring;
-                if (length > 0 && length <= 3) {
-                  strncpy (latencyvalue, (pstrlatency + lstring), length);
-                  latencyvalue[length] = 0;
-                  latency = atoi (latencyvalue);
-                }
+              } else {
+                length = strlen (pstrlatency);
+                length -= lstring;
+              }
+              if (length > 0 && length <= 3) {
+                strncpy (latencyvalue, (pstrlatency + lstring), length);
+                latencyvalue[length] = 0;
+                latency = atoi (latencyvalue);
               }
             }
           }
