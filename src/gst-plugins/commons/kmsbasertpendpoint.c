@@ -295,6 +295,7 @@ struct _KmsBaseRtpEndpointPrivate
 
   gboolean perform_video_sync;
   guint jitterbuffermode;
+  gint audiolatency;
 };
 
 /* Signals and args */
@@ -337,6 +338,7 @@ enum
   PROP_SUPPORT_FEC,
   PROP_OFFER_DIR,
   PROP_JITTERBUF_MODE,
+  PROP_AUDIOLATENCY,
   PROP_LAST
 };
 
@@ -2284,7 +2286,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   switch (session) {
     case AUDIO_RTP_SESSION:{
       {
-        gint latency = JB_READY_AUDIO_LATENCY;
+        gint latency = self->priv->audiolatency;
 
         {                       //RTCSP-1871 try to adjust the latency to avoid resonance
           const gchar *gflags_string = g_getenv ("ESTOS_DEBUG");
@@ -2759,6 +2761,10 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       break;
     }
 
+    case PROP_AUDIOLATENCY:
+      self->priv->audiolatency = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -2827,6 +2833,9 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_JITTERBUF_MODE:
       g_value_set_uint (value, self->priv->jitterbuffermode);
+      break;
+    case PROP_AUDIOLATENCY:
+      g_value_set_uint (value, self->priv->audiolatency);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -3290,6 +3299,13 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "set param jitterbuffermode",
           "set param jitterbuffermode",
           0, G_MAXUINT16, DEFAULT_JITTERBUF_MODE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_AUDIOLATENCY,
+      g_param_spec_uint ("audiolatency",
+          "set param audiolatency",
+          "set param audiolatency",
+          0, G_MAXUINT16, JB_READY_AUDIO_LATENCY,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
@@ -3767,6 +3783,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
   //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
   self->priv->jitterbuffermode = RTP_JITTER_BUFFER_MODE_NONE;
+  self->priv->audiolatency = JB_READY_AUDIO_LATENCY;
 }
 
 GObject *

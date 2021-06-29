@@ -58,9 +58,11 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define PARAM_MIN_PORT "minPort"
 #define PARAM_MAX_PORT "maxPort"
+#define PARAM_AUDIOLATENCY "audiolatency"
 
 #define PROP_MIN_PORT "min-port"
 #define PROP_MAX_PORT "max-port"
+#define PROP_AUDIOLATENCY "audiolatency"
 
 /* Fixed point conversion macros */
 #define FRIC        65536.                  /* 2^16 as a double */
@@ -149,40 +151,63 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
 
   mypipeline = 0;
 
-
   //RTCSP-865 Portrange
-  guint minPort;
+  //RTCSP-1901 portconflict
+  guint16 minPort = 0;
+  guint16 maxPort = 0;
 
   if (min_port == 0) {
     try {
       minPort = getConfigValue<guint, BaseRtpEndpoint> (PARAM_MIN_PORT);
-      g_object_set (getGstreamerElement(), PROP_MIN_PORT, minPort, NULL);
       GST_DEBUG ("config min_port:%d", minPort);
     } catch (boost::property_tree::ptree_bad_path &e) {
       /* Expected when configuration is not set */
       GST_DEBUG ("default min_port:%d", 1024);
+      minPort = 0;
     }
   } else {
     minPort = min_port;
-    g_object_set (getGstreamerElement(), PROP_MIN_PORT, minPort, NULL);
     GST_DEBUG ("create min_port:%d", minPort);
   }
-
-  guint maxPort;
 
   if (max_port == 0) {
     try {
       maxPort = getConfigValue <guint, BaseRtpEndpoint> (PARAM_MAX_PORT);
-      g_object_set (getGstreamerElement(), PROP_MAX_PORT, maxPort, NULL);
       GST_DEBUG ("config max_port:%d", maxPort);
     } catch (boost::property_tree::ptree_bad_path &e) {
       /* Expected when configuration is not set */
       GST_DEBUG ("default max_port:%d", 0xffff);
+      maxPort = 0;
     }
   } else {
     maxPort = max_port;
-    g_object_set (getGstreamerElement(), PROP_MAX_PORT, maxPort, NULL);
     GST_DEBUG ("create max_port:%d", maxPort);
+  }
+
+  // RTCSP-1901 portconflict - only do the split if we have not the default settings
+  if (minPort != 0 && maxPort != 0) {
+    guint portdiff = maxPort - minPort;
+
+    if (bIsThisaRtpendpoint() == TRUE) { // use the lower half
+      maxPort = minPort + (portdiff / 2) - 2;
+    } else { //use the upper half
+      minPort = minPort + (portdiff / 2);
+    }
+
+    GST_DEBUG ("used min_port:%d", minPort);
+    GST_DEBUG ("used max_port:%d", maxPort);
+    g_object_set (getGstreamerElement(), PROP_MIN_PORT, minPort, NULL);
+    g_object_set (getGstreamerElement(), PROP_MAX_PORT, maxPort, NULL);
+  }
+
+  guint latency = 0;
+
+  try {
+    latency = getConfigValue<guint, BaseRtpEndpoint> (PARAM_AUDIOLATENCY);
+    GST_DEBUG ("config audiolatency:%d", latency);
+    g_object_set (getGstreamerElement(), PROP_AUDIOLATENCY, latency, NULL);
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    latency = 0;
   }
 }
 
