@@ -37,6 +37,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_LOCAL_ADDRESS "localAddress"
 #define PARAM_SOCKET_REUSE "socketreuse"
 #define PARAM_RTPEP_AVPF "rtpepavpfuse"
+#define PARAM_JBUFMODE_RTP "jbufmodertp"
+#define PARAM_JBUFMODE_WEBRTC "jbufmodewebrtc"
 
 namespace kurento
 {
@@ -146,7 +148,8 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   SessionEndpointImpl (config, parent, factoryName)
 {
   GArray *audio_codecs, *video_codecs;
-  guint audio_medias, video_medias, socket_reuse, use_rtpep_avpf;
+  guint audio_medias, video_medias, socket_reuse, use_rtpep_avpf, jbuf_mode_rtp,
+        jbuf_mode_webrtc;
   std::string local_address;
   bool bdosocketreuse, rtpepavpfuse;
 
@@ -169,6 +172,10 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
                   "");
   socket_reuse = getConfigValue <guint, SdpEndpoint> (PARAM_SOCKET_REUSE, 1);
   use_rtpep_avpf = getConfigValue <guint, SdpEndpoint> (PARAM_RTPEP_AVPF, 1);
+  // default value 4 RTP_JITTER_BUFFER_MODE_SYNCED
+  jbuf_mode_rtp = getConfigValue <guint, SdpEndpoint> (PARAM_JBUFMODE_RTP, 4);
+  jbuf_mode_webrtc = getConfigValue <guint, SdpEndpoint> (PARAM_JBUFMODE_WEBRTC,
+                     4);
 
   if (socket_reuse == 1 && isrtpendpoint == TRUE) {
     dosocketreuse = TRUE;
@@ -224,11 +231,9 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
   //RTCSP-1701 delayed audio switching -> set both buffers to synced mode after the jitterbuffer mode created in rtpbin is set correctly
   if (isrtpendpoint == TRUE) {
-    //g_object_set (element, "jitterbuffermode", 0, NULL);  //none
-    //g_object_set (element, "jitterbuffermode", 1, NULL);  //slave
-    g_object_set (element, "jitterbuffermode", 4, NULL);  //synced
+    g_object_set (element, "jitterbuffermode", jbuf_mode_rtp, NULL);
   } else {
-    g_object_set (element, "jitterbuffermode", 4, NULL);  //synced
+    g_object_set (element, "jitterbuffermode", jbuf_mode_webrtc, NULL);
   }
 
   offerInProcess = false;
