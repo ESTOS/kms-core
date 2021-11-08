@@ -2753,7 +2753,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
 
       if (v >= RTP_JITTER_BUFFER_MODE_LAST
           || v == RTP_JITTER_BUFFER_MODE_UNUSED)
-        v = RTP_JITTER_BUFFER_MODE_SYNCED;
+        v = RTP_JITTER_BUFFER_MODE_NONE;
       self->priv->jitterbuffermode = v;
       //RTCSP-1701 delayed audio switching must set is also in the rtpbin otherwise the jitterbuffer
       //has only the default settings
