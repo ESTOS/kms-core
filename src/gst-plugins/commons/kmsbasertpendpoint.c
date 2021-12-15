@@ -860,7 +860,7 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
   GObject *rtpsession = NULL;
   GstStructure *sdes = NULL;
   const gchar *cname;
-  guint ssrc;
+  guint ssrc = 0;
   gchar *str;
 
   if (!kms_utils_contains_proto (proto_str, "RTP")) {
@@ -894,7 +894,8 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
 
   g_object_get (self->priv->rtpbin, "sdes", &sdes, NULL);
   cname = gst_structure_get_string (sdes, "cname");
-  g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
+  if (ssrc == 0)
+    g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
   /* HACK: force this SSRC in the payloader. */
   g_object_set (rtpsession, "internal-ssrc", ssrc, NULL);
   g_object_unref (rtpsession);
@@ -1508,6 +1509,8 @@ kms_base_rtp_endpoint_connect_payloader_with_dtmfmux (KmsBaseRtpEndpoint * self,
 
   GstElement *rtpdtmfmux = gst_element_factory_make ("rtpdtmfmux", NULL);
 
+  g_object_set (rtpdtmfmux, "timestamp-offset", 0, NULL);
+
 #ifdef DTMFSRC
   GstElement *rtpdtmfsrc = gst_element_factory_make ("rtpdtmfsrc", NULL);
 
@@ -1574,6 +1577,8 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   KmsElementPadType type;
 
   gboolean bdtmfinsert = FALSE;
+
+  //gboolean bkmsrtpendpoint = FALSE;
   gint ipt = 0;
 
   f_len = gst_sdp_media_formats_len (media);
@@ -1606,6 +1611,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
         gchar *name = GST_OBJECT_NAME ((GST_OBJECT_PARENT (rtpbin)));
 
         if (g_str_has_prefix (name, "kmsrtpendpoint")) {
+          //bkmsrtpendpoint = TRUE;
           if (0 ==
               g_strcmp0 (kms_utils_get_caps_codec_name_from_sdp (codec_name),
                   "TELEPHONE-EVENT")) {
@@ -1629,6 +1635,11 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   if (payloader == NULL) {
     GST_WARNING_OBJECT (self, "Payloader not found for media '%s'", media_str);
     return;
+  }
+  //PROCALL-1130 ru-bu
+  // if (bkmsrtpendpoint == TRUE)
+  {
+    g_object_set (payloader, "timestamp-offset", 0, NULL);
   }
 
   GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
