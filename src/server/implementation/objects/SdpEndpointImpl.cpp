@@ -172,10 +172,10 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
                   "");
   socket_reuse = getConfigValue <guint, SdpEndpoint> (PARAM_SOCKET_REUSE, 1);
   use_rtpep_avpf = getConfigValue <guint, SdpEndpoint> (PARAM_RTPEP_AVPF, 1);
-  // default value 0 RTP_JITTER_BUFFER_MODE_NONE
-  jbuf_mode_rtp = getConfigValue <guint, SdpEndpoint> (PARAM_JBUFMODE_RTP, 0);
+  // default value 1 RTP_JITTER_BUFFER_MODE_SLAVE PROCALL-1695
+  jbuf_mode_rtp = getConfigValue <guint, SdpEndpoint> (PARAM_JBUFMODE_RTP, 1);
   jbuf_mode_webrtc = getConfigValue <guint, SdpEndpoint> (PARAM_JBUFMODE_WEBRTC,
-                     0);
+                     1);
 
   if (socket_reuse == 1 && isrtpendpoint == TRUE) {
     dosocketreuse = TRUE;

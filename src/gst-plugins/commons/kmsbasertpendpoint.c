@@ -74,8 +74,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 )
 
 #define JB_INITIAL_LATENCY 0
-#define JB_READY_AUDIO_LATENCY 50
-#define JB_READY_VIDEO_LATENCY 500
+#define JB_READY_AUDIO_LATENCY 200
+#define JB_READY_VIDEO_LATENCY 200
 #define RTCP_FB_CCM_FIR   SDP_MEDIA_RTCP_FB_CCM " " SDP_MEDIA_RTCP_FB_FIR
 #define RTCP_FB_NACK_PLI  SDP_MEDIA_RTCP_FB_NACK " " SDP_MEDIA_RTCP_FB_PLI
 
@@ -3794,7 +3794,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   //RTCSP-1078 switch back to synched mode
   //RTCSP-973 we use none mode because the other modes gives problems in case of changing one mediaendpoint
   //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
-  self->priv->jitterbuffermode = RTP_JITTER_BUFFER_MODE_NONE;
+  self->priv->jitterbuffermode = RTP_JITTER_BUFFER_MODE_SLAVE;
   self->priv->audiolatency = JB_READY_AUDIO_LATENCY;
 }
 
