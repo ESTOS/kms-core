@@ -296,6 +296,8 @@ struct _KmsBaseRtpEndpointPrivate
   gboolean perform_video_sync;
   guint jitterbuffermode;
   gint audiolatency;
+
+  GstElement *send_funnel;
 };
 
 /* Signals and args */
@@ -2076,22 +2078,33 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
       gst_element_link_pads (depayloader, "src", fake, "sink");
       gst_element_sync_state_with_parent (fake);
     } else {
-      if (FALSE == gst_element_link_pads (depayloader, "src", agnostic, "sink")) {      //unlink pad and try again
-        GstPad *sink_pad = gst_element_get_static_pad (agnostic, "sink");
+      /* PROCALL-1815
+         Linkage:
+         rtpbin(pad)->depayloader("sink")->depayloader("src")->send_funnel("sink_%u")->send_funnel(src)->agnostic("sink")
+       */
+      GstElement *send_funnel;
+      GstPad *funnel_sink_pad, *depayloader_src_pad;
 
-        if (gst_pad_is_linked (sink_pad)) {
-          GstPad *peer_pad = gst_pad_get_peer (sink_pad);
-
-          gst_pad_unlink (peer_pad, sink_pad);
-          gst_object_unref (peer_pad);
-        }
-        gst_object_unref (sink_pad);
-        //once again
-        gst_element_link_pads (depayloader, "src", agnostic, "sink");
+      if (self->priv->send_funnel == NULL) {
+        //install funnel
+        send_funnel = gst_element_factory_make ("funnel", NULL);
+        self->priv->send_funnel = send_funnel;
+        gst_bin_add (GST_BIN (self), send_funnel);
+        gst_element_link_pads (send_funnel, "src", agnostic, "sink");
+      } else {
+        send_funnel = self->priv->send_funnel;
       }
+
+      funnel_sink_pad = gst_element_get_request_pad (send_funnel, "sink_%u");
+      depayloader_src_pad = gst_element_get_static_pad (depayloader, "src");
+      gst_pad_link (depayloader_src_pad, funnel_sink_pad);
+      gst_object_unref (funnel_sink_pad);
+      gst_object_unref (depayloader_src_pad);
+
       gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
           "sink");
       gst_element_sync_state_with_parent (depayloader);
+      gst_element_sync_state_with_parent (send_funnel);
     }
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
@@ -3796,6 +3809,8 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   //RTCSP-1552 for conference mode "none" is not working so we must switch it on for webrtcendpoints
   self->priv->jitterbuffermode = RTP_JITTER_BUFFER_MODE_NONE;
   self->priv->audiolatency = JB_READY_AUDIO_LATENCY;
+
+  self->priv->send_funnel = NULL;
 }
 
 GObject *
