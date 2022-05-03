@@ -2078,33 +2078,47 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
       gst_element_link_pads (depayloader, "src", fake, "sink");
       gst_element_sync_state_with_parent (fake);
     } else {
-      /* PROCALL-1815
-         Linkage:
-         rtpbin(pad)->depayloader("sink")->depayloader("src")->send_funnel("sink_%u")->send_funnel(src)->agnostic("sink")
-       */
-      GstElement *send_funnel;
-      GstPad *funnel_sink_pad, *depayloader_src_pad;
+      gboolean bkmsrtpendpoint = FALSE;
+      gchar *name = GST_OBJECT_NAME ((GST_OBJECT_PARENT (rtpbin)));
 
-      if (self->priv->send_funnel == NULL) {
-        //install funnel
-        send_funnel = gst_element_factory_make ("funnel", NULL);
-        self->priv->send_funnel = send_funnel;
-        gst_bin_add (GST_BIN (self), send_funnel);
-        gst_element_link_pads (send_funnel, "src", agnostic, "sink");
+      if (g_str_has_prefix (name, "kmsrtpendpoint"))
+        bkmsrtpendpoint = TRUE;
+
+      if (bkmsrtpendpoint == TRUE) {
+        /* PROCALL-1815
+           Linkage:
+           rtpbin(pad)->depayloader("sink")->depayloader("src")->send_funnel("sink_%u")->send_funnel(src)->agnostic("sink")
+         */
+        GstElement *send_funnel;
+        GstPad *funnel_sink_pad, *depayloader_src_pad;
+
+        if (self->priv->send_funnel == NULL) {
+          //install funnel
+          send_funnel = gst_element_factory_make ("funnel", NULL);
+          self->priv->send_funnel = send_funnel;
+          gst_bin_add (GST_BIN (self), send_funnel);
+          gst_element_link_pads (send_funnel, "src", agnostic, "sink");
+        } else {
+          send_funnel = self->priv->send_funnel;
+        }
+
+        funnel_sink_pad = gst_element_get_request_pad (send_funnel, "sink_%u");
+        depayloader_src_pad = gst_element_get_static_pad (depayloader, "src");
+        gst_pad_link (depayloader_src_pad, funnel_sink_pad);
+        gst_object_unref (funnel_sink_pad);
+        gst_object_unref (depayloader_src_pad);
+
+        gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+            "sink");
+        gst_element_sync_state_with_parent (depayloader);
+        gst_element_sync_state_with_parent (send_funnel);
       } else {
-        send_funnel = self->priv->send_funnel;
+        //on webrtc we hopefully have no ssrc change
+        gst_element_link_pads (depayloader, "src", agnostic, "sink");
+        gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
+            "sink");
+        gst_element_sync_state_with_parent (depayloader);
       }
-
-      funnel_sink_pad = gst_element_get_request_pad (send_funnel, "sink_%u");
-      depayloader_src_pad = gst_element_get_static_pad (depayloader, "src");
-      gst_pad_link (depayloader_src_pad, funnel_sink_pad);
-      gst_object_unref (funnel_sink_pad);
-      gst_object_unref (depayloader_src_pad);
-
-      gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader,
-          "sink");
-      gst_element_sync_state_with_parent (depayloader);
-      gst_element_sync_state_with_parent (send_funnel);
     }
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
