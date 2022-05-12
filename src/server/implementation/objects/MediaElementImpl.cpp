@@ -1093,6 +1093,36 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
     audio_codecs_list.push_back ("PCMA/8000");
     break;
 
+  case AudioCodec::G722:
+    str_caps = "audio/G722";
+    audio_codecs_list.push_back ("G722/8000");
+    break;
+
+  case AudioCodec::G726_16:
+    str_caps = "audio/G726";
+    audio_codecs_list.push_back ("G726-16/8000");
+    break;
+
+  case AudioCodec::G726_24:
+    str_caps = "audio/G726";
+    audio_codecs_list.push_back ("G726-24/8000");
+    break;
+
+  case AudioCodec::G726_32:
+    str_caps = "audio/G726";
+    audio_codecs_list.push_back ("G726-32/8000");
+    break;
+
+  case AudioCodec::G726_40:
+    str_caps = "audio/G726";
+    audio_codecs_list.push_back ("G726-40/8000");
+    break;
+
+  case AudioCodec::G729:
+    str_caps = "audio/G720";
+    audio_codecs_list.push_back ("G729/8000");
+    break;
+
   case AudioCodec::TELEPHONE_EVENT:
     str_caps = "audio/x-raw";
     audio_codecs_list.push_back ("telephone-event/8000");

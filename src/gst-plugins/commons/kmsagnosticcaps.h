@@ -66,7 +66,9 @@
   "audio/x-vorbis;" \
   "audio/x-opus;" \
   "audio/AMR,rate=[8000, 16000],channels=1;" \
-  "audio/x-gsm;"
+  "audio/x-gsm;" \
+  "audio/G722;" \
+  "audio/G729;"
 
 #define KMS_AGNOSTIC_NO_RTP_AUDIO_CAPS \
   KMS_AGNOSTIC_RAW_AUDIO_CAPS \

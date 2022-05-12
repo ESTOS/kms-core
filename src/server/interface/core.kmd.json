@@ -1052,6 +1052,12 @@
         "PCMU",
         "RAW",
         "PCMA",
+        "G722",
+        "G726_16",
+        "G726_24",
+        "G726_32",
+        "G726_40",
+        "G729",
         "TELEPHONE_EVENT"
       ],
       "name": "AudioCodec",
