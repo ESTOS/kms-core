@@ -19,6 +19,7 @@
 #include <gst/gst.h>
 #include <glib.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "constants.h"
 
@@ -278,7 +279,22 @@ sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media, const gchar * format)
 
     if (g_ascii_strcasecmp (RTPMAP, attr->key) == 0) {
       if (g_str_has_prefix (attr->value, format)) {
+        int rtpmaplenfull = strlen (attr->value);
+        int rtpmaplenpart = 0;
+        int ptlen = strlen (format);
+
         rtpmap = g_strstr_len (attr->value, -1, " ");
+        rtpmaplenpart = strlen (rtpmap);
+        /* PROCALL-2090 fix
+           - if the payloadtype is the same then the prefix then we get a wrong match because 9 == 9(6)
+           - so we check if the length of the prefix is same then the payloadlength
+           m=audio 2030 RTP/AVP 9 96
+           a=rtpmap:96 telephone-event/8000
+           "96"+" telephone-event/8000" is not "9"+" telephone-event/8000"
+         */
+        if ((rtpmaplenpart + ptlen) != rtpmaplenfull)
+          rtpmap = NULL;
+
         if (rtpmap != NULL)
           rtpmap = rtpmap + 1;
       }
