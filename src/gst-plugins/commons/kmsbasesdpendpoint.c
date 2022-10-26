@@ -104,6 +104,7 @@ struct _KmsBaseSdpEndpointPrivate
   gint next_session_id;
   GHashTable *sessions;
   GstSDPMessage *first_neg_sdp;
+  GstSDPMessage *first_local_sdp;
 
   gboolean bundle;
   gboolean use_ipv6;
@@ -618,6 +619,10 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self,
 
   offer = kms_sdp_session_generate_offer (sess);
 
+  if (self->priv->first_local_sdp == NULL && offer) {
+    gst_sdp_message_copy (offer, &self->priv->first_local_sdp);
+  }
+
 end:
   KMS_ELEMENT_UNLOCK (self);
 
@@ -665,6 +670,10 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
+  if (self->priv->first_local_sdp == NULL && answer) {
+    gst_sdp_message_copy (answer, &self->priv->first_local_sdp);
+  }
+
   if (self->priv->first_neg_sdp == NULL && sess->neg_sdp) {
     gst_sdp_message_copy (sess->neg_sdp, &self->priv->first_neg_sdp);
   }
@@ -706,6 +715,18 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
   kms_base_sdp_endpoint_start_media (self, sess, TRUE);
 
 end:
+  KMS_ELEMENT_UNLOCK (self);
+
+  return ret;
+}
+
+const GstSDPMessage *
+kms_base_sdp_endpoint_get_first_local_sdp (KmsBaseSdpEndpoint * self)
+{
+  const GstSDPMessage *ret;
+
+  KMS_ELEMENT_LOCK (self);
+  ret = self->priv->first_local_sdp;
   KMS_ELEMENT_UNLOCK (self);
 
   return ret;
@@ -1023,6 +1044,10 @@ kms_base_sdp_endpoint_finalize (GObject * object)
 
   if (self->priv->first_neg_sdp != NULL) {
     gst_sdp_message_free (self->priv->first_neg_sdp);
+  }
+
+  if (self->priv->first_local_sdp != NULL) {
+    gst_sdp_message_free (self->priv->first_local_sdp);
   }
 
   if (self->priv->audio_codecs != NULL) {

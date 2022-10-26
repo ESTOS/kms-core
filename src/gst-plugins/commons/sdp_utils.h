@@ -64,4 +64,6 @@ gint sdp_utils_get_pt_for_codec_name (const GstSDPMedia *media, const gchar *cod
 gint sdp_utils_get_abs_send_time_id (const GstSDPMedia * media);
 gboolean sdp_utils_media_is_inactive (const GstSDPMedia * media);
 
+const GstSDPMedia * sdp_utils_get_media_from_pt (const GstSDPMessage * sdp, guint pt, const char * media_type);
+
 #endif /* __SDP_H__ */

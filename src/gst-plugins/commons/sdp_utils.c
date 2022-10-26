@@ -1066,6 +1066,36 @@ sdp_utils_media_is_inactive (const GstSDPMedia * media)
       || gst_sdp_media_get_port (media) == 0;
 }
 
+const GstSDPMedia *
+sdp_utils_get_media_from_pt (const GstSDPMessage * sdp, guint pt,
+    const char *media_type)
+{
+  guint i, len;
+
+  len = gst_sdp_message_medias_len (sdp);
+
+  for (i = 0; i < len; i++) {
+    guint j, f_len;
+    const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
+    const gchar *media_str = gst_sdp_media_get_media (media);
+
+    if (g_strcmp0 (media_str, media_type) != 0) {
+      continue;
+    }
+
+    f_len = gst_sdp_media_formats_len (media);
+    for (j = 0; j < f_len; j++) {
+      const gchar *payload = gst_sdp_media_get_format (media, j);
+
+      if (atoi (payload) == pt) {
+        return media;
+      }
+    }
+  }
+
+  return NULL;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

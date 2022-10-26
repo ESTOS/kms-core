@@ -1881,16 +1881,69 @@ end:
 }
 
 static GstCaps *
-kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
+kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt,
+    guint session)
 {
+  guint i, len;
+  gchar *str_pt = NULL;
+  GstCaps *local_caps = NULL;
+  GstCaps *caps = NULL;
+
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
   const GstSDPMessage *sdp =
       kms_base_sdp_endpoint_get_first_negotiated_sdp (base_endpoint);
-  guint i, len;
+  const GstSDPMessage *local_sdp =
+      kms_base_sdp_endpoint_get_first_local_sdp (base_endpoint);
 
   if (sdp == NULL) {
     GST_WARNING_OBJECT (self, "Negotiated session not set");
-    return FALSE;
+    goto end;
+  }
+  // Fetch media type string to handle same PTs for different medias
+  const char *media_type_str;
+
+  switch (session) {
+    case AUDIO_RTP_SESSION:
+      media_type_str = kms_utils_media_type_to_str (KMS_MEDIA_TYPE_AUDIO);
+      break;
+    case VIDEO_RTP_SESSION:
+      media_type_str = kms_utils_media_type_to_str (KMS_MEDIA_TYPE_VIDEO);
+      break;
+    default:
+      GST_WARNING_OBJECT (self, "No media supported for session %u", session);
+      goto end;
+  }
+
+  /*
+   * We already have the first negotiated SDP (the remote one). To handle PT
+   * mismatches, we'll also get our first local SDP to fetch the media that
+   * matches the PT emitted on request-pt-map. With that media, we run a caps
+   * comparison with the first negotiated SDP to determine a match.
+   */
+  const GstSDPMedia *local_media =
+      sdp_utils_get_media_from_pt (local_sdp, pt, media_type_str);
+
+  /*
+   * Local media not found. This shouldn't happen, so early-exit and try to
+   * generate a fallback caps based on the session info.
+   */
+  if (local_media == NULL) {
+    goto end;
+  }
+
+  str_pt = g_strdup_printf ("%i", pt);
+  const gchar *local_media_str = gst_sdp_media_get_media (local_media);
+  const gchar *local_rtpmap =
+      sdp_utils_sdp_media_get_rtpmap (local_media, str_pt);
+  const gchar *local_fmtp = sdp_utils_sdp_media_get_fmtp (local_media, str_pt);
+
+  local_caps =
+      kms_base_rtp_endpoint_get_caps_from_rtpmap (local_media_str, str_pt,
+      local_rtpmap);
+
+  /* Configure local media codec with fmtp info if it is possible */
+  if (local_fmtp != NULL) {
+    complement_caps_with_fmtp_attrs (local_caps, local_fmtp);
   }
 
   len = gst_sdp_message_medias_len (sdp);
@@ -1903,14 +1956,10 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 
     f_len = gst_sdp_media_formats_len (media);
     for (j = 0; j < f_len; j++) {
-      GstCaps *caps;
       const gchar *payload = gst_sdp_media_get_format (media, j);
 
-      if (atoi (payload) != pt) {
-        continue;
-      }
-
       rtpmap = sdp_utils_sdp_media_get_rtpmap (media, payload);
+
       caps =
           kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, payload,
           rtpmap);
@@ -1919,7 +1968,22 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
         continue;
       }
 
-      /* Configure codec if it is possible */
+      /* Do an intersection to determine if we're fetching the proper PT caps
+         This is done to handle PTs mismatches between sender/receiver. With it,
+         we use codec info layed on the SDP to determine the pt-map. */
+      GstStructure *st1, *st2;
+
+      st1 = gst_caps_get_structure (caps, 0);
+      st2 = gst_caps_get_structure (local_caps, 0);
+
+      gst_structure_remove_fields (st1, "payload", NULL);
+      gst_structure_remove_fields (st2, "payload", NULL);
+
+      if (!gst_caps_can_intersect (caps, local_caps)) {
+        continue;
+      }
+
+      /* A proper PT map was found. Configure codec if it is possible */
       fmtp = sdp_utils_sdp_media_get_fmtp (media, payload);
 
       if (fmtp != NULL) {
@@ -1928,11 +1992,19 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 
       complete_caps_with_fb (caps, media, payload);
 
-      return caps;
+      goto end;
     }
   }
 
-  return NULL;
+end:
+  if (str_pt != NULL) {
+    g_free (str_pt);
+  }
+  if (local_caps != NULL) {
+    gst_caps_unref (local_caps);
+  }
+
+  return caps;
 }
 
 static GstCaps *
@@ -1943,8 +2015,7 @@ kms_base_rtp_endpoint_rtpbin_request_pt_map (GstElement * rtpbin, guint session,
 
   GST_DEBUG_OBJECT (self, "Caps request for pt: %d", pt);
 
-  /* TODO: we will need to use the session if medias share payload numbers */
-  caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
+  caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt, session);
 
   if (caps != NULL) {
     KmsRtpSynchronizer *sync = NULL;
