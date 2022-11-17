@@ -391,6 +391,8 @@ kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (KmsSdpRtpAvpMediaHandler * self,
     /* [rfc4566] rtpmap attribute can be omitted for static payload type  */
     /* numbers so it is completely defined in the RTP Audio/Video profile */
     omit = pt >= DEFAULT_RTP_AUDIO_BASE_PAYLOAD && pt <= G_N_ELEMENTS (rtpmaps);
+    /* PROCALL-2410 allways set the rtpmaps - also for static payloads */
+    omit = FALSE;
 
     for (item = fmts; item != NULL; item = g_slist_next (item)) {
       KmsSdpRtpMap *rtpmap = item->data;
