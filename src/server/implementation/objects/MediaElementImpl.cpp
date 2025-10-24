@@ -1142,6 +1142,7 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "audio-caps", c, NULL);
+  gst_caps_unref (c);
 
   audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) ); //ru-bu
 
@@ -1198,6 +1199,7 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "video-caps", c, NULL);
+  gst_caps_unref (c);
 
   video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
 
